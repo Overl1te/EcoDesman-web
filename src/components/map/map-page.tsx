@@ -10,21 +10,23 @@ import {
   Cuboid,
   Clock3,
   Filter,
-  ImagePlus,
   MapPin,
   MessageSquarePlus,
   Send,
   Star,
-  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/components/providers/auth-provider";
+import { ReportContentButton } from "@/components/support/report-content-button";
+import { useThemeMode } from "@/components/providers/theme-provider";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ImageDropzone } from "@/components/ui/image-dropzone";
 import { LoadingBlock } from "@/components/ui/loading-block";
 import {
+  createMapReviewReport,
   createMapPointReview,
   getMapOverview,
   getMapPointDetail,
@@ -37,9 +39,9 @@ import {
   getMapPointAppearance,
   getPrimaryMapCategory,
 } from "@/lib/map-point-style";
+import { getMapStyle } from "@/lib/map-style";
 import type { MapOverviewResponse, MapPointDetail, MapPointSummary } from "@/lib/types";
 
-const mapStyleUrl = "https://tiles.openfreemap.org/styles/liberty";
 const pointSourceId = "eco-map-points";
 const pointHaloLayerId = "eco-map-points-halo";
 const pointLayerId = "eco-map-points";
@@ -92,6 +94,7 @@ function buildPointsGeoJson(points: MapPointSummary[], selectedId?: number | nul
 
 export function MapPage() {
   const { isAuthenticated, openAuthModal } = useAuth();
+  const { mode } = useThemeMode();
   const [overview, setOverview] = useState<MapOverviewResponse | null>(null);
   const [selected, setSelected] = useState<MapPointDetail | null>(null);
   const [activeCategory, setActiveCategory] = useState("");
@@ -102,15 +105,12 @@ export function MapPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewBody, setReviewBody] = useState("");
   const [reviewImages, setReviewImages] = useState<File[]>([]);
-  const [reviewImagePreviews, setReviewImagePreviews] = useState<string[]>([]);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [isThreeDimensional, setIsThreeDimensional] = useState(false);
   const mapRef = useRef<HTMLDivElement | null>(null);
-  const reviewFileInputRef = useRef<HTMLInputElement | null>(null);
-  const reviewPreviewUrlsRef = useRef<string[]>([]);
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
   const visiblePointsRef = useRef<MapPointSummary[]>([]);
   const selectedIdRef = useRef<number | null>(null);
@@ -120,24 +120,7 @@ export function MapPage() {
     setReviewRating(5);
     setReviewBody("");
     setReviewImages([]);
-    setReviewImagePreviews((current) => {
-      current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
-      return [];
-    });
-    if (reviewFileInputRef.current) {
-      reviewFileInputRef.current.value = "";
-    }
     setReviewError(null);
-  }, []);
-
-  useEffect(() => {
-    reviewPreviewUrlsRef.current = reviewImagePreviews;
-  }, [reviewImagePreviews]);
-
-  useEffect(() => {
-    return () => {
-      reviewPreviewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
-    };
   }, []);
 
   const loadPointDetail = useCallback(async (pointId: number) => {
@@ -271,27 +254,8 @@ export function MapPage() {
     }
   }, [activeCategory, selected]);
 
-  function handleReviewFilesChange(fileList: FileList | null) {
-    if (!fileList?.length) {
-      return;
-    }
-
-    const nextFiles = Array.from(fileList);
-    const nextPreviewUrls = nextFiles.map((file) => URL.createObjectURL(file));
-
-    setReviewImages((current) => [...current, ...nextFiles]);
-    setReviewImagePreviews((current) => [...current, ...nextPreviewUrls]);
-  }
-
   function removeReviewImage(index: number) {
     setReviewImages((current) => current.filter((_, currentIndex) => currentIndex !== index));
-    setReviewImagePreviews((current) => {
-      const previewUrl = current[index];
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-      return current.filter((_, currentIndex) => currentIndex !== index);
-    });
   }
 
   async function submitReview() {
@@ -343,10 +307,15 @@ export function MapPage() {
           [overview.bounds.west, overview.bounds.south],
           [overview.bounds.east, overview.bounds.north],
         ];
+        const mapStyle = await getMapStyle(mode);
+
+        if (cancelled) {
+          return;
+        }
 
         const map = new maplibregl.Map({
           container: mapRef.current,
-          style: mapStyleUrl,
+          style: mapStyle,
           center: nizhnyCenter,
           zoom: nizhnyZoom,
           pitch: threeDimensionalPitch,
@@ -474,7 +443,7 @@ export function MapPage() {
       mapInstanceRef.current = null;
       setMapReady(false);
     };
-  }, [openPoint, overview]);
+  }, [mode, openPoint, overview]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -759,63 +728,17 @@ export function MapPage() {
                         />
                       </label>
 
-                      <div className="map-review-upload">
-                        <input
-                          ref={reviewFileInputRef}
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="visually-hidden"
-                          onChange={(event) => {
-                            handleReviewFilesChange(event.target.files);
-                            event.target.value = "";
-                          }}
-                        />
-
-                        <div className="map-review-upload-header">
-                          <div>
-                            <strong>Фотографии места</strong>
-                            <p className="muted">
-                              Можно приложить несколько снимков к отзыву.
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            className="button button-muted button-inline"
-                            onClick={() => reviewFileInputRef.current?.click()}
-                            disabled={reviewBusy}
-                          >
-                            <ImagePlus className="button-icon" />
-                            <span>
-                              {reviewImages.length ? "Добавить ещё" : "Добавить фото"}
-                            </span>
-                          </button>
-                        </div>
-
-                        {reviewImagePreviews.length ? (
-                          <div className="map-review-image-grid">
-                            {reviewImagePreviews.map((previewUrl, index) => (
-                              <div key={previewUrl} className="map-review-image-card">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={previewUrl}
-                                  alt={`Предпросмотр фото ${index + 1}`}
-                                  className="gallery-image"
-                                />
-                                <button
-                                  type="button"
-                                  className="icon-button icon-button-muted map-review-image-remove"
-                                  aria-label={`Удалить фото ${index + 1}`}
-                                  onClick={() => removeReviewImage(index)}
-                                  disabled={reviewBusy}
-                                >
-                                  <Trash2 className="nav-icon" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
+                      <ImageDropzone
+                        title="Фотографии места"
+                        description="Можно приложить несколько снимков к отзыву."
+                        files={reviewImages}
+                        disabled={reviewBusy}
+                        browseLabel={reviewImages.length ? "Добавить ещё" : "Добавить фото"}
+                        onAddFiles={(nextFiles) => {
+                          setReviewImages((current) => [...current, ...nextFiles]);
+                        }}
+                        onRemoveFile={removeReviewImage}
+                      />
 
                       {reviewError ? <div className="form-banner is-error">{reviewError}</div> : null}
 
@@ -847,10 +770,21 @@ export function MapPage() {
                         <article key={review.id} className="review-card">
                           <div className="review-card-header">
                             <strong>{review.author_name}</strong>
-                            <span className="review-rating">
-                              <Star className="review-rating-icon" />
-                              {review.rating}/5
-                            </span>
+                            <div className="support-chat-header-chips">
+                              <span className="review-rating">
+                                <Star className="review-rating-icon" />
+                                {review.rating}/5
+                              </span>
+                              {!review.is_owner ? (
+                                <ReportContentButton
+                                  label="Пожаловаться"
+                                  targetLabel={review.body.slice(0, 80) || "Отзыв на карте"}
+                                  onSubmit={(payload) =>
+                                    createMapReviewReport(selected.id, review.id, payload)
+                                  }
+                                />
+                              ) : null}
+                            </div>
                           </div>
                           <span className="muted">{formatDateTime(review.created_at)}</span>
                           <p>{review.body}</p>

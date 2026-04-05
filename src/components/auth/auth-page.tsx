@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Circle, X } from "lucide-react";
@@ -16,6 +17,14 @@ function passwordChecks(password: string) {
     { label: "Есть буквы", passed: /[A-Za-zА-Яа-я]/.test(password) },
     { label: "Есть цифра", passed: /\d/.test(password) },
   ];
+}
+
+function LegalLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="auth-legal-link" target="_blank" rel="noreferrer">
+      {children}
+    </Link>
+  );
 }
 
 export function AuthDialog() {
@@ -36,6 +45,10 @@ export function AuthDialog() {
   const [phone, setPhone] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerPasswordConfirmation, setRegisterPasswordConfirmation] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
+  const [acceptPersonalData, setAcceptPersonalData] = useState(false);
+  const [acceptPublicPersonalData, setAcceptPublicPersonalData] = useState(false);
 
   const registerChecks = useMemo(() => passwordChecks(registerPassword), [registerPassword]);
 
@@ -102,6 +115,10 @@ export function AuthDialog() {
           phone: phone || undefined,
           password: registerPassword,
           password_confirmation: registerPasswordConfirmation,
+          accept_terms: acceptTerms,
+          accept_privacy_policy: acceptPrivacyPolicy,
+          accept_personal_data: acceptPersonalData,
+          accept_public_personal_data_distribution: acceptPublicPersonalData,
         });
       }
     } catch (nextError) {
@@ -150,7 +167,7 @@ export function AuthDialog() {
             <p className="auth-description">
               {mode === "login"
                 ? "Войдите по почте, телефону или логину, чтобы продолжить работу."
-                : "Создайте аккаунт и получите доступ к публикациям, избранному и профилю."}
+                : "Создайте аккаунт, чтобы писать посты, хранить избранное и обращаться в техподдержку."}
             </p>
           </div>
           <button
@@ -180,9 +197,9 @@ export function AuthDialog() {
           </button>
         </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form className={`auth-form auth-form-${mode}`} onSubmit={handleSubmit}>
           {mode === "login" ? (
-            <>
+            <div className="auth-form-stack">
               <label className="field">
                 <span>Почта, телефон или логин</span>
                 <input
@@ -205,9 +222,9 @@ export function AuthDialog() {
               >
                 Забыли пароль?
               </button>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="auth-form-stack">
               <div className="two-columns">
                 <label className="field">
                   <span>Имя</span>
@@ -263,15 +280,71 @@ export function AuthDialog() {
                   onChange={(event) => setRegisterPasswordConfirmation(event.target.value)}
                 />
               </label>
-            </>
+
+              <div className="auth-legal-block">
+                <label className="auth-legal-check">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(event) => setAcceptTerms(event.target.checked)}
+                  />
+                  <span>
+                    Принимаю <LegalLink href="/help#terms">пользовательское соглашение</LegalLink>.
+                  </span>
+                </label>
+
+                <label className="auth-legal-check">
+                  <input
+                    type="checkbox"
+                    checked={acceptPrivacyPolicy}
+                    onChange={(event) => setAcceptPrivacyPolicy(event.target.checked)}
+                  />
+                  <span>
+                    Подтверждаю ознакомление с{" "}
+                    <LegalLink href="/help#privacy-policy">
+                      политикой обработки персональных данных
+                    </LegalLink>
+                    .
+                  </span>
+                </label>
+
+                <label className="auth-legal-check">
+                  <input
+                    type="checkbox"
+                    checked={acceptPersonalData}
+                    onChange={(event) => setAcceptPersonalData(event.target.checked)}
+                  />
+                  <span>
+                    Даю <LegalLink href="/help#personal-data-consent">согласие на обработку персональных данных</LegalLink>.
+                  </span>
+                </label>
+
+                <label className="auth-legal-check">
+                  <input
+                    type="checkbox"
+                    checked={acceptPublicPersonalData}
+                    onChange={(event) => setAcceptPublicPersonalData(event.target.checked)}
+                  />
+                  <span>
+                    При необходимости разрешаю публичное размещение данных по{" "}
+                    <LegalLink href="/help#distribution-consent">
+                      согласию на распространение персональных данных
+                    </LegalLink>
+                    .
+                  </span>
+                </label>
+              </div>
+            </div>
           )}
 
           {error ? <div className="form-banner is-error">{error}</div> : null}
           {info ? <div className="form-banner is-info">{info}</div> : null}
 
+          <div className="auth-submit-bar">
           <button type="submit" className="button button-primary button-block" disabled={loading}>
             {loading ? "Подождите..." : mode === "login" ? "Войти" : "Создать аккаунт"}
           </button>
+          </div>
         </form>
       </section>
     </div>

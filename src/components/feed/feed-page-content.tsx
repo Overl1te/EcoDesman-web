@@ -102,6 +102,7 @@ export function FeedPageContent({
     <AppShell
       title={title}
       actions={<TopbarSearch placeholder="Поиск публикаций и авторов" />}
+      contentClassName="page-content-feed"
     >
       {isAuthBlocked ? (
         <EmptyState

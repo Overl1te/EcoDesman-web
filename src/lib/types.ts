@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "moderator" | "user";
+export type UserRole = "admin" | "support" | "moderator" | "user";
 
 export interface UserStats {
   posts_count: number;
@@ -29,6 +29,7 @@ export interface CurrentUser extends UserSummary {
   vk_url: string;
   instagram_url: string;
   can_access_admin: boolean;
+  can_access_support: boolean;
   stats: UserStats;
 }
 
@@ -75,9 +76,12 @@ export interface PostListItem {
   has_images: boolean;
   is_owner: boolean;
   can_edit: boolean;
+  event_date: string | null;
   event_starts_at: string | null;
   event_ends_at: string | null;
   event_location: string;
+  is_event_cancelled: boolean;
+  event_cancelled_at: string | null;
 }
 
 export interface PostDetail extends Omit<PostListItem, "preview_text" | "preview_image_url"> {
@@ -101,6 +105,8 @@ export interface NotificationItem {
   };
   post_id: number | null;
   comment_id: number | null;
+  support_thread_id: number | null;
+  report_id: number | null;
 }
 
 export interface NotificationResponse {
@@ -142,6 +148,8 @@ export interface MapPointReview {
   body: string;
   created_at: string;
   images: MapPointImage[];
+  is_owner: boolean;
+  can_edit: boolean;
 }
 
 export interface MapPointDetail extends MapPointSummary {
@@ -191,6 +199,159 @@ export interface AdminUser extends UserSummary {
   date_joined: string;
   last_login: string | null;
   can_access_admin: boolean;
+  can_access_support: boolean;
+}
+
+export interface SupportKnowledgeEntry {
+  id: string;
+  category: string;
+  title: string;
+  answer: string;
+  keywords: string[];
+  is_featured: boolean;
+}
+
+export interface SupportKnowledgeResponse {
+  featured: SupportKnowledgeEntry[];
+  faq: SupportKnowledgeEntry[];
+  suggested_prompts: string[];
+}
+
+export interface HelpCenterOverviewCard {
+  title: string;
+  title_en?: string;
+  body: string;
+  body_en?: string;
+}
+
+export interface HelpCenterOverview {
+  title: string;
+  title_en?: string;
+  description: string;
+  description_en?: string;
+  cards: HelpCenterOverviewCard[];
+}
+
+export interface HelpCenterServiceBlock {
+  title: string;
+  title_en?: string;
+  body: string;
+  body_en?: string;
+}
+
+export interface HelpDocumentApproval {
+  status: string;
+  status_en?: string;
+  revision: string;
+  revision_en?: string;
+  effective_date: string;
+  effective_date_en?: string;
+  approved_by: string;
+  approved_by_en?: string;
+  approved_role: string;
+  approved_role_en?: string;
+  approval_basis: string;
+  approval_basis_en?: string;
+  contact: string;
+  contact_en?: string;
+  note: string;
+  note_en?: string;
+}
+
+export interface HelpDocumentSection {
+  title: string;
+  title_en?: string;
+  paragraphs: string[];
+  paragraphs_en?: string[];
+  bullets?: string[];
+  bullets_en?: string[];
+}
+
+export interface HelpDocument {
+  id: string;
+  label: string;
+  label_en?: string;
+  summary: string;
+  summary_en?: string;
+  pdf_file_name: string;
+  pdf_download_url: string;
+  approval: HelpDocumentApproval;
+  sections: HelpDocumentSection[];
+}
+
+export interface HelpCenterResponse {
+  overview: HelpCenterOverview;
+  service_blocks: HelpCenterServiceBlock[];
+  documents: HelpDocument[];
+}
+
+export interface SupportParticipant {
+  id: number;
+  name: string;
+  username: string;
+  avatar_url: string;
+  role: UserRole;
+}
+
+export interface SupportMessage {
+  id: number;
+  sender_type: "user" | "support" | "bot" | "system";
+  sender_name: string;
+  body: string;
+  created_at: string;
+  author: SupportParticipant | null;
+}
+
+export interface SupportReportBadge {
+  id: number;
+  target_type: "post" | "comment" | "map_review";
+  reason: string;
+  status: "new" | "in_review" | "resolved" | "rejected";
+  created_at: string;
+}
+
+export interface SupportThreadSummary {
+  id: number;
+  subject: string;
+  category: "general" | "account" | "content" | "map" | "report";
+  status: "open" | "waiting_support" | "waiting_user" | "closed";
+  created_at: string;
+  updated_at: string;
+  last_message_at: string;
+  last_message_preview: string;
+  unread_count: number;
+  created_by: SupportParticipant;
+  assigned_to: SupportParticipant | null;
+  report: SupportReportBadge | null;
+}
+
+export interface SupportThreadDetail extends SupportThreadSummary {
+  messages: SupportMessage[];
+}
+
+export interface SupportBotReplyResponse {
+  reply: string;
+  matched_article: SupportKnowledgeEntry | null;
+  suggestions: SupportKnowledgeEntry[];
+}
+
+export interface SupportReport {
+  id: number;
+  target_type: "post" | "comment" | "map_review";
+  target_id: number | null;
+  target_label: string;
+  reason: string;
+  details: string;
+  status: "new" | "in_review" | "resolved" | "rejected";
+  resolution_note: string;
+  created_at: string;
+  updated_at: string;
+  reporter: SupportParticipant;
+  reviewed_by: SupportParticipant | null;
+  thread_id: number | null;
+  post_id: number | null;
+  comment_id: number | null;
+  review_id: number | null;
 }
 
 export interface AdminMapPoint {
@@ -251,9 +412,33 @@ export interface PostWritePayload {
   kind?: "news" | "event" | "story";
   is_published?: boolean;
   image_urls?: string[];
+  event_date?: string | null;
   event_starts_at?: string | null;
   event_ends_at?: string | null;
   event_location?: string;
+}
+
+export interface CalendarEventEntry {
+  id: number;
+  title: string;
+  body: string;
+  kind: "news" | "event" | "story";
+  author: PostAuthor;
+  event_date: string | null;
+  event_starts_at: string | null;
+  event_ends_at: string | null;
+  event_location: string;
+  is_event_cancelled: boolean;
+  event_cancelled_at: string | null;
+  can_edit: boolean;
+}
+
+export interface EventCalendarResponse {
+  year: number;
+  month: number;
+  starts_on: string;
+  ends_on: string;
+  events: CalendarEventEntry[];
 }
 
 export interface AdminMapPointWritePayload {

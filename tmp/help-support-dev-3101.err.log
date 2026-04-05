@@ -1,0 +1,13 @@
+[browser] The final argument passed to useEffect changed size between renders. The order and size of this array must remain constant.
+
+Previous: [false, false, false, /help]
+Incoming: [false, true, false, false, false, /help] 
+    at AppShell (src/components/layout/app-shell.tsx:93:12)
+    at Set.forEach (<anonymous>)
+  91 |     !pathname.startsWith("/admin");
+  92 |
+> 93 |   useEffect(() => {
+     |            ^
+  94 |     if (
+  95 |       typeof window === "undefined" ||
+  96 |       isDownloadRoute || (src/components/layout/app-shell.tsx:93:12)

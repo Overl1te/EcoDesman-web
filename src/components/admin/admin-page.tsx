@@ -122,6 +122,10 @@ function getRoleLabel(role: UserRole): string {
     return "Админ";
   }
 
+  if (role === "support") {
+    return "Техподдержка";
+  }
+
   if (role === "moderator") {
     return "Модератор";
   }
@@ -512,21 +516,21 @@ export function AdminPage() {
             <div className="stat-card">
               <strong>{compactCount(overview.posts_count)} </strong>
               <span>Посты: </span>
-              <small color="#a6a6a6">
+              <small style={{color: '#a6a6a6'}}>
                 {overview.published_posts_count} опубликовано, {overview.draft_posts_count} черновиков
               </small>
             </div>
             <div className="stat-card">
               <strong>{compactCount(overview.map_points_count)} </strong>
               <span>Точки карты: </span>
-              <small color="#a6a6a6">
+              <small style={{color: '#a6a6a6'}}>
                 {overview.active_map_points_count} активных, {overview.hidden_map_points_count} скрытых
               </small>
             </div>
             <div className="stat-card">
               <strong>{compactCount(overview.users_count)} </strong>
               <span>Пользователи: </span>
-              <small color="#a6a6a6">
+              <small style={{color: '#a6a6a6'}}>
                 {overview.admins_count} админов, {overview.banned_users_count} заблокировано
               </small>
             </div>
@@ -759,6 +763,7 @@ export function AdminPage() {
                   >
                     <option value="all">Все роли</option>
                     <option value="admin">Админы</option>
+                    <option value="support">Техподдержка</option>
                     <option value="moderator">Модераторы</option>
                     <option value="user">Пользователи</option>
                   </select>
@@ -819,6 +824,12 @@ export function AdminPage() {
                               <span>Админ-доступ</span>
                             </span>
                           ) : null}
+                          {adminUser.can_access_support ? (
+                            <span className="admin-status is-warning">
+                              <ShieldAlert className="button-icon" />
+                              <span>Техподдержка</span>
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                       <p className="muted">
@@ -843,6 +854,7 @@ export function AdminPage() {
                           }
                         >
                           <option value="admin">Админ</option>
+                          <option value="support">Техподдержка</option>
                           <option value="moderator">Модератор</option>
                           <option value="user">Пользователь</option>
                         </select>

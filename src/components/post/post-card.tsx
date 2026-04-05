@@ -1,26 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Bookmark,
-  CalendarDays,
-  Eye,
-  Heart,
-  MapPin,
-  MessageCircle,
-} from "lucide-react";
+import { ArrowUpRight, Bookmark, CalendarDays, Eye, Heart, MapPin, MessageCircle } from "lucide-react";
 import { useState } from "react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { ReportContentButton } from "@/components/support/report-content-button";
 import { Avatar } from "@/components/ui/avatar";
-import { toggleFavorite, toggleLike } from "@/lib/api";
-import { compactCount, formatDateTime } from "@/lib/format";
+import { createPostReport, toggleFavorite, toggleLike } from "@/lib/api";
+import { compactCount, formatDate, formatDateTime } from "@/lib/format";
 import type { PostListItem } from "@/lib/types";
 
 function getKindLabel(kind: PostListItem["kind"]) {
   if (kind === "event") {
-    return "Событие";
+    return "Мероприятие";
   }
 
   if (kind === "story") {
@@ -98,16 +91,49 @@ export function PostCard({
               <CalendarDays className="meta-icon" />
               <small>{formatDateTime(post.published_at)}</small>
             </span>
+            {post.author.status_text ? (
+              <small className="author-status">{post.author.status_text}</small>
+            ) : null}
           </span>
         </Link>
 
-        <span className="tag">{getKindLabel(post.kind)}</span>
+        <div className="post-card-head-tags">
+          <span className="tag">{getKindLabel(post.kind)}</span>
+          {post.kind === "event" && post.is_event_cancelled ? (
+            <span className="tag tag-danger">Отменено</span>
+          ) : null}
+        </div>
       </header>
 
       <Link href={`/posts/${post.id}`} className="post-content">
         {post.title ? <h3>{post.title}</h3> : null}
         <p>{post.preview_text || post.body}</p>
       </Link>
+
+      {post.kind === "event" && (post.event_date || post.event_starts_at || post.event_location) ? (
+        <div className="event-summary">
+          {post.event_date ? (
+            <span className="event-summary-item">
+              <CalendarDays className="meta-icon" />
+              <span>{formatDate(`${post.event_date}T00:00:00`)}</span>
+            </span>
+          ) : null}
+
+          {post.event_starts_at ? (
+            <span className="event-summary-item">
+              <CalendarDays className="meta-icon" />
+              <span>{formatDateTime(post.event_starts_at)}</span>
+            </span>
+          ) : null}
+
+          {post.event_location ? (
+            <span className="event-summary-item">
+              <MapPin className="meta-icon" />
+              <span>{post.event_location}</span>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {post.preview_image_url ? (
         <Link href={`/posts/${post.id}`} className="post-image-link">
@@ -120,37 +146,23 @@ export function PostCard({
         </Link>
       ) : null}
 
-      {post.kind === "event" && (post.event_location || post.event_starts_at) ? (
-        <div className="meta-row">
-          {post.event_location ? (
-            <span className="meta-item">
-              <MapPin className="meta-icon" />
-              <span>{post.event_location}</span>
-            </span>
-          ) : null}
-
-          {post.event_starts_at ? (
-            <span className="meta-item">
-              <CalendarDays className="meta-icon" />
-              <span>{formatDateTime(post.event_starts_at)}</span>
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
       <footer className="post-card-footer">
         <div className="metrics-row">
           <span className="metric-item">
             <Heart className="meta-icon" />
-            <span>{compactCount(post.likes_count)} лайков</span>
+            <span>{compactCount(post.likes_count)}</span>
+          </span>
+          <span className="metric-item">
+            <Bookmark className="meta-icon" />
+            <span>{compactCount(post.favorites_count)}</span>
           </span>
           <span className="metric-item">
             <MessageCircle className="meta-icon" />
-            <span>{compactCount(post.comments_count)} комментариев</span>
+            <span>{compactCount(post.comments_count)}</span>
           </span>
           <span className="metric-item">
             <Eye className="meta-icon" />
-            <span>{compactCount(post.view_count)} просмотров</span>
+            <span>{compactCount(post.view_count)}</span>
           </span>
         </div>
 
@@ -174,6 +186,13 @@ export function PostCard({
             <Bookmark className="button-icon" />
             <span>{post.is_favorited ? "В избранном" : "В избранное"}</span>
           </button>
+
+          {!post.is_owner ? (
+            <ReportContentButton
+              targetLabel={post.title || post.preview_text || "Пост"}
+              onSubmit={(payload) => createPostReport(post.id, payload)}
+            />
+          ) : null}
 
           <Link href={`/posts/${post.id}`} className="button button-inline button-ghost">
             <ArrowUpRight className="button-icon" />

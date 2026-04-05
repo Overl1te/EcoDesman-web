@@ -17,8 +17,7 @@ import {
   register as apiRegister,
   updateProfile as apiUpdateProfile,
 } from "@/lib/api";
-import { clearStoredSession, readStoredSession, writeStoredSession } from "@/lib/session";
-import type { AuthSession, CurrentUser, ProfileUpdatePayload } from "@/lib/types";
+import type { CurrentUser, ProfileUpdatePayload } from "@/lib/types";
 
 type AuthModalMode = "login" | "register";
 
@@ -30,7 +29,6 @@ interface AuthModalState {
 
 interface AuthContextValue {
   user: CurrentUser | null;
-  session: AuthSession | null;
   isAuthenticated: boolean;
   isBootstrapping: boolean;
   authModal: AuthModalState;
@@ -42,6 +40,10 @@ interface AuthContextValue {
     phone?: string;
     password: string;
     password_confirmation: string;
+    accept_terms: boolean;
+    accept_privacy_policy: boolean;
+    accept_personal_data: boolean;
+    accept_public_personal_data_distribution?: boolean;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -58,7 +60,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(null);
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [authModal, setAuthModal] = useState<AuthModalState>({
     isOpen: false,
@@ -68,20 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const bootstrap = async () => {
-      const stored = readStoredSession();
-      if (!stored) {
-        setIsBootstrapping(false);
-        return;
-      }
-
       try {
-        const user = await fetchMe(stored.access);
-        const nextSession = { ...stored, user };
-        writeStoredSession(nextSession);
-        setSession(nextSession);
+        const currentUser = await fetchMe();
+        setUser(currentUser);
       } catch {
-        clearStoredSession();
-        setSession(null);
+        setUser(null);
       } finally {
         setIsBootstrapping(false);
       }
@@ -92,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (payload: { identifier: string; password: string }) => {
     const nextSession = await apiLogin(payload);
-    setSession(nextSession);
+    setUser(nextSession.user);
   }, []);
 
   const register = useCallback(
@@ -103,40 +96,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       phone?: string;
       password: string;
       password_confirmation: string;
+      accept_terms: boolean;
+      accept_privacy_policy: boolean;
+      accept_personal_data: boolean;
+      accept_public_personal_data_distribution?: boolean;
     }) => {
       const nextSession = await apiRegister(payload);
-      setSession(nextSession);
+      setUser(nextSession.user);
     },
     [],
   );
 
   const logout = useCallback(async () => {
     await apiLogout();
-    setSession(null);
+    setUser(null);
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const stored = readStoredSession();
-    if (!stored) {
-      setSession(null);
-      return;
+    try {
+      const currentUser = await fetchMe();
+      setUser(currentUser);
+    } catch {
+      setUser(null);
     }
-
-    const user = await fetchMe(stored.access);
-    const nextSession = { ...stored, user };
-    writeStoredSession(nextSession);
-    setSession(nextSession);
   }, []);
 
   const updateProfile = useCallback(async (payload: ProfileUpdatePayload) => {
-    const user = await apiUpdateProfile(payload);
-    const stored = readStoredSession();
-    if (stored) {
-      const nextSession = { ...stored, user };
-      writeStoredSession(nextSession);
-      setSession(nextSession);
-    }
-    return user;
+    const nextUser = await apiUpdateProfile(payload);
+    setUser(nextUser);
+    return nextUser;
   }, []);
 
   const changePasswordHandler = useCallback(
@@ -146,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       new_password_confirmation: string;
     }) => {
       const nextSession = await changePassword(payload);
-      setSession(nextSession);
+      setUser(nextSession.user);
     },
     [],
   );
@@ -165,9 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user: session?.user ?? null,
-      session,
-      isAuthenticated: Boolean(session?.access),
+      user,
+      isAuthenticated: Boolean(user),
       isBootstrapping,
       authModal,
       login,
@@ -189,8 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       openAuthModal,
       refreshUser,
       register,
-      session,
       updateProfile,
+      user,
     ],
   );
 

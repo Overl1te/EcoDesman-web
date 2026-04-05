@@ -5,7 +5,7 @@ import { LoadingBlock } from "@/components/ui/loading-block";
 
 export default function EventsPage() {
   return (
-    <Suspense fallback={<LoadingBlock label="Загружаю мероприятия..." />}>
+    <Suspense fallback={<LoadingBlock label="Загружаю календарь мероприятий..." />}>
       <EventsFeedPage />
     </Suspense>
   );

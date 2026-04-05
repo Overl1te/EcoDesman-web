@@ -1,7 +1,6 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/config";
-import { clearStoredSession, readStoredSession, writeStoredSession } from "@/lib/session";
 import type {
   AdminMapPoint,
   AdminMapPointWritePayload,
@@ -9,7 +8,9 @@ import type {
   AdminUser,
   AuthSession,
   CurrentUser,
+  EventCalendarResponse,
   FeedFilters,
+  HelpCenterResponse,
   MapPointDetail,
   MapPointCategory,
   MapOverviewResponse,
@@ -19,6 +20,11 @@ import type {
   PostListItem,
   PostWritePayload,
   ProfileUpdatePayload,
+  SupportBotReplyResponse,
+  SupportKnowledgeResponse,
+  SupportReport,
+  SupportThreadDetail,
+  SupportThreadSummary,
   UserSummary,
 } from "@/lib/types";
 
@@ -61,52 +67,36 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-async function refreshAccessToken(): Promise<AuthSession | null> {
-  const session = readStoredSession();
-  if (!session?.refresh) {
-    return null;
-  }
-
+async function refreshAccessToken(): Promise<boolean> {
   const response = await fetch(buildUrl("/auth/refresh"), {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ refresh: session.refresh }),
+    body: JSON.stringify({}),
+    credentials: "include",
   });
 
   if (!response.ok) {
-    clearStoredSession();
-    return null;
+    return false;
   }
 
-  const tokenData = (await response.json()) as { access: string; refresh?: string };
-  const refreshedUser = await fetchMe(tokenData.access);
-  const nextSession: AuthSession = {
-    access: tokenData.access,
-    refresh: tokenData.refresh ?? session.refresh,
-    user: refreshedUser,
-  };
-  writeStoredSession(nextSession);
-  return nextSession;
+  return true;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const session = options.auth ? readStoredSession() : null;
   const headers = new Headers(options.headers ?? {});
 
   headers.set("Accept", "application/json");
   if (!(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
-  if (options.auth && session?.access) {
-    headers.set("Authorization", `Bearer ${session.access}`);
-  }
 
   const response = await fetch(buildUrl(path), {
     ...options,
     headers,
+    credentials: "include",
   });
 
   if (response.status === 401 && options.auth && options.retry !== false) {
@@ -119,28 +109,15 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return parseResponse<T>(response);
 }
 
-export async function fetchMe(accessToken?: string): Promise<CurrentUser> {
-  const token = accessToken ?? readStoredSession()?.access;
-  if (!token) {
-    throw new ApiError("Не найден access token", 401, null);
-  }
-
-  const response = await fetch(buildUrl("/auth/me"), {
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  return parseResponse<CurrentUser>(response);
+export async function fetchMe(): Promise<CurrentUser> {
+  return request<CurrentUser>("/auth/me", { auth: true });
 }
 
 export async function login(payload: { identifier: string; password: string }): Promise<AuthSession> {
-  const session = await request<AuthSession>("/auth/login", {
+  return request<AuthSession>("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  writeStoredSession(session);
-  return session;
 }
 
 export async function register(payload: {
@@ -150,28 +127,26 @@ export async function register(payload: {
   phone?: string;
   password: string;
   password_confirmation: string;
+  accept_terms: boolean;
+  accept_privacy_policy: boolean;
+  accept_personal_data: boolean;
+  accept_public_personal_data_distribution?: boolean;
 }): Promise<AuthSession> {
-  const session = await request<AuthSession>("/auth/register", {
+  return request<AuthSession>("/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  writeStoredSession(session);
-  return session;
 }
 
 export async function logout(): Promise<void> {
-  const refresh = readStoredSession()?.refresh;
-  if (refresh) {
-    try {
-      await request<void>("/auth/logout", {
-        method: "POST",
-        body: JSON.stringify({ refresh }),
-      });
-    } catch {
-      // ignore server logout errors, local state is still cleared
-    }
+  try {
+    await request<void>("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  } catch {
+    // ignore server logout errors, UI state is still cleared locally
   }
-  clearStoredSession();
 }
 
 export async function requestPasswordReset(identifier: string): Promise<{ detail: string }> {
@@ -186,13 +161,11 @@ export async function changePassword(payload: {
   new_password: string;
   new_password_confirmation: string;
 }): Promise<AuthSession> {
-  const session = await request<AuthSession>("/auth/change-password", {
+  return request<AuthSession>("/auth/change-password", {
     method: "POST",
     auth: true,
     body: JSON.stringify(payload),
   });
-  writeStoredSession(session);
-  return session;
 }
 
 function buildFeedApiSearchParams(filters: FeedFilters = {}): URLSearchParams {
@@ -216,6 +189,18 @@ export async function listPosts(filters: FeedFilters = {}, auth = false): Promis
 
 export async function getPost(postId: number, auth = false): Promise<PostDetail> {
   return request<PostDetail>(`/posts/${postId}`, { auth });
+}
+
+export async function getEventCalendar(
+  year: number,
+  month: number,
+  auth = false,
+): Promise<EventCalendarResponse> {
+  const params = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  return request<EventCalendarResponse>(`/posts/calendar?${params.toString()}`, { auth });
 }
 
 export async function toggleLike(postId: number, isLiked: boolean): Promise<void> {
@@ -272,6 +257,16 @@ export async function updatePost(postId: number, payload: PostWritePayload): Pro
     method: "PATCH",
     auth: true,
     body: JSON.stringify(payload),
+  });
+}
+
+export async function setEventCancelled(
+  postId: number,
+  isCancelled: boolean,
+): Promise<PostDetail> {
+  return request<PostDetail>(`/posts/${postId}/cancel`, {
+    method: isCancelled ? "POST" : "DELETE",
+    auth: true,
   });
 }
 
@@ -370,6 +365,134 @@ export async function readNotification(notificationId: number): Promise<void> {
   });
 }
 
+export async function getSupportKnowledge(): Promise<SupportKnowledgeResponse> {
+  return request<SupportKnowledgeResponse>("/support/knowledge");
+}
+
+export async function getHelpCenterContent(): Promise<HelpCenterResponse> {
+  return request<HelpCenterResponse>("/support/help-center");
+}
+
+export async function askSupportBot(query: string): Promise<SupportBotReplyResponse> {
+  return request<SupportBotReplyResponse>("/support/bot/reply", {
+    method: "POST",
+    body: JSON.stringify({ query }),
+  });
+}
+
+export async function listSupportThreads(): Promise<SupportThreadSummary[]> {
+  return request<SupportThreadSummary[]>("/support/threads", { auth: true });
+}
+
+export async function createSupportThread(payload: {
+  subject: string;
+  body: string;
+  category?: "general" | "account" | "content" | "map" | "report";
+}): Promise<SupportThreadDetail> {
+  return request<SupportThreadDetail>("/support/threads", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getSupportThread(threadId: number): Promise<SupportThreadDetail> {
+  return request<SupportThreadDetail>(`/support/threads/${threadId}`, { auth: true });
+}
+
+export async function sendSupportMessage(
+  threadId: number,
+  body: string,
+): Promise<void> {
+  await request(`/support/threads/${threadId}/messages`, {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function listSupportTeamThreads(): Promise<SupportThreadSummary[]> {
+  return request<SupportThreadSummary[]>("/support/team/threads", { auth: true });
+}
+
+export async function updateSupportTeamThread(
+  threadId: number,
+  payload: { status?: SupportThreadSummary["status"]; assigned_to_id?: number | null },
+): Promise<SupportThreadDetail> {
+  return request<SupportThreadDetail>(`/support/team/threads/${threadId}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createContentReport(payload: {
+  target_type: "post" | "comment" | "map_review";
+  target_id: number;
+  reason: "spam" | "abuse" | "misinformation" | "dangerous" | "copyright" | "other";
+  details?: string;
+}): Promise<SupportReport> {
+  return request<SupportReport>("/support/reports", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createPostReport(
+  postId: number,
+  payload: { reason: "spam" | "abuse" | "misinformation" | "dangerous" | "copyright" | "other"; details?: string },
+): Promise<SupportReport> {
+  return request<SupportReport>(`/posts/${postId}/report`, {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createCommentReport(
+  postId: number,
+  commentId: number,
+  payload: { reason: "spam" | "abuse" | "misinformation" | "dangerous" | "copyright" | "other"; details?: string },
+): Promise<SupportReport> {
+  return request<SupportReport>(`/posts/${postId}/comments/${commentId}/report`, {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createMapReviewReport(
+  pointId: number,
+  reviewId: number,
+  payload: { reason: "spam" | "abuse" | "misinformation" | "dangerous" | "copyright" | "other"; details?: string },
+): Promise<SupportReport> {
+  return request<SupportReport>(`/map/points/${pointId}/reviews/${reviewId}/report`, {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function listSupportTeamReports(): Promise<SupportReport[]> {
+  return request<SupportReport[]>("/support/team/reports", { auth: true });
+}
+
+export async function updateSupportTeamReport(
+  reportId: number,
+  payload: {
+    status: SupportReport["status"];
+    resolution_note?: string;
+    remove_target?: boolean;
+  },
+): Promise<SupportReport> {
+  return request<SupportReport>(`/support/team/reports/${reportId}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function listUsers(search: string): Promise<UserSummary[]> {
   const params = new URLSearchParams();
   if (search) {
@@ -384,17 +507,11 @@ export async function getPublicProfile(userId: number, auth = false): Promise<Cu
 }
 
 export async function updateProfile(payload: ProfileUpdatePayload): Promise<CurrentUser> {
-  const user = await request<CurrentUser>("/auth/me", {
+  return request<CurrentUser>("/auth/me", {
     method: "PATCH",
     auth: true,
     body: JSON.stringify(payload),
   });
-
-  const session = readStoredSession();
-  if (session) {
-    writeStoredSession({ ...session, user });
-  }
-  return user;
 }
 
 export async function uploadImages(files: File[]): Promise<string[]> {
@@ -430,6 +547,13 @@ export async function createMapPointReview(
     method: "POST",
     auth: true,
     body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteMapPointReview(pointId: number, reviewId: number): Promise<void> {
+  await request(`/map/points/${pointId}/reviews/${reviewId}`, {
+    method: "DELETE",
+    auth: true,
   });
 }
 

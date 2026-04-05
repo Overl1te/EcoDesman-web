@@ -217,15 +217,17 @@ export function ProfilePage({ userId }: { userId?: number }) {
                 ) : null}
               </section>
 
-              <section className="feed-column">
-                {posts?.results.length ? (
-                  posts.results.map((post) => <PostCard key={post.id} post={post} />)
-                ) : (
-                  <EmptyState
-                    title="Пока нет публикаций"
-                    description="Когда пользователь что-то опубликует, посты появятся здесь."
-                  />
-                )}
+              <section className="feed-main">
+                <div className="feed-column">
+                  {posts?.results.length ? (
+                    posts.results.map((post) => <PostCard key={post.id} post={post} />)
+                  ) : (
+                    <EmptyState
+                      title="Пока нет публикаций"
+                      description="Когда пользователь что-то опубликует, посты появятся здесь."
+                    />
+                  )}
+                </div>
               </section>
             </>
           ) : null}
@@ -234,3 +236,4 @@ export function ProfilePage({ userId }: { userId?: number }) {
     </AppShell>
   );
 }
+

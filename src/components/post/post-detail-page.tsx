@@ -7,8 +7,10 @@ import {
   Bookmark,
   CalendarDays,
   Check,
+  CircleOff,
   Eye,
   Heart,
+  MapPin,
   MessageCircle,
   PencilLine,
   Trash2,
@@ -18,24 +20,28 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/components/providers/auth-provider";
+import { ReportContentButton } from "@/components/support/report-content-button";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingBlock } from "@/components/ui/loading-block";
 import {
   createComment,
+  createCommentReport,
+  createPostReport,
   deleteComment,
   deletePost,
   getPost,
+  setEventCancelled,
   toggleFavorite,
   toggleLike,
   updateComment,
 } from "@/lib/api";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import type { PostComment, PostDetail } from "@/lib/types";
 
 function getKindLabel(kind: PostDetail["kind"]) {
   if (kind === "event") {
-    return "Событие";
+    return "Мероприятие";
   }
 
   if (kind === "story") {
@@ -56,7 +62,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
   const [commentBody, setCommentBody] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentBody, setEditingCommentBody] = useState("");
-  const [reactionBusy, setReactionBusy] = useState<"like" | "favorite" | "delete" | null>(null);
+  const [reactionBusy, setReactionBusy] = useState<"like" | "favorite" | "delete" | "cancel" | null>(null);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [commentBusyId, setCommentBusyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +75,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
     try {
       setPost(await getPost(postId, isAuthenticated));
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Не удалось загрузить пост");
+      setError(nextError instanceof Error ? nextError.message : "Не удалось загрузить пост.");
     } finally {
       setLoading(false);
     }
@@ -164,6 +170,26 @@ export function PostDetailPage({ postId }: { postId: number }) {
     }
   };
 
+  const handleToggleCancellation = async () => {
+    if (!post) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      openAuthModal({ returnTo: `/posts/${post.id}` });
+      return;
+    }
+
+    setReactionBusy("cancel");
+
+    try {
+      await setEventCancelled(post.id, !post.is_event_cancelled);
+      await load();
+    } finally {
+      setReactionBusy(null);
+    }
+  };
+
   const beginCommentEdit = (comment: PostComment) => {
     setEditingCommentId(comment.id);
     setEditingCommentBody(comment.body);
@@ -236,11 +262,45 @@ export function PostDetailPage({ postId }: { postId: number }) {
                 </span>
               </Link>
 
-              <span className="tag">{getKindLabel(post.kind)}</span>
+              <div className="post-card-head-tags">
+                <span className="tag">{getKindLabel(post.kind)}</span>
+                {post.kind === "event" && post.is_event_cancelled ? (
+                  <span className="tag tag-danger">Отменено</span>
+                ) : null}
+              </div>
             </header>
 
             {post.title ? <h2>{post.title}</h2> : null}
             <div className="post-body">{post.body}</div>
+
+            {post.kind === "event" ? (
+              <div className="event-summary">
+                {post.event_date ? (
+                  <span className="event-summary-item">
+                    <CalendarDays className="meta-icon" />
+                    <span>{formatDate(`${post.event_date}T00:00:00`)}</span>
+                  </span>
+                ) : null}
+                {post.event_starts_at ? (
+                  <span className="event-summary-item">
+                    <CalendarDays className="meta-icon" />
+                    <span>{formatDateTime(post.event_starts_at)}</span>
+                  </span>
+                ) : null}
+                {post.event_location ? (
+                  <span className="event-summary-item">
+                    <MapPin className="meta-icon" />
+                    <span>{post.event_location}</span>
+                  </span>
+                ) : null}
+                {post.is_event_cancelled && post.event_cancelled_at ? (
+                  <span className="event-summary-item">
+                    <CircleOff className="meta-icon" />
+                    <span>Отменено {formatDateTime(post.event_cancelled_at)}</span>
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
 
             {post.images.length ? (
               <div className="gallery-grid">
@@ -302,6 +362,31 @@ export function PostDetailPage({ postId }: { postId: number }) {
                 <span>Открыть фото</span>
               </Link>
 
+              {!post.is_owner ? (
+                <ReportContentButton
+                  targetLabel={post.title || "Пост"}
+                  onSubmit={(payload) => createPostReport(post.id, payload)}
+                />
+              ) : null}
+
+              {post.kind === "event" && post.can_edit ? (
+                <button
+                  type="button"
+                  className={`button button-inline ${post.is_event_cancelled ? "button-muted" : "button-ghost"}`}
+                  onClick={() => void handleToggleCancellation()}
+                  disabled={reactionBusy !== null}
+                >
+                  <CircleOff className="button-icon" />
+                  <span>
+                    {reactionBusy === "cancel"
+                      ? "Сохраняю..."
+                      : post.is_event_cancelled
+                        ? "Вернуть мероприятие"
+                        : "Отменить мероприятие"}
+                  </span>
+                </button>
+              ) : null}
+
               {post.can_edit ? (
                 <button
                   type="button"
@@ -344,7 +429,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
             ) : (
               <EmptyState
                 title="Войдите, чтобы комментировать"
-                description="Авторизация откроет доступ к обсуждениям и реакциям."
+                description="После авторизации откроется доступ к комментариям и реакциям."
                 action={
                   <button
                     type="button"
@@ -385,9 +470,18 @@ export function PostDetailPage({ postId }: { postId: number }) {
                           </span>
                         </Link>
 
-                        {comment.can_edit ? (
+                        {!editing && (comment.can_edit || !comment.is_owner) ? (
                           <div className="comment-actions">
-                            {!editing ? (
+                            {!comment.is_owner ? (
+                              <ReportContentButton
+                                label="Пожаловаться"
+                                targetLabel={comment.body.slice(0, 80) || "Комментарий"}
+                                onSubmit={(payload) =>
+                                  createCommentReport(post.id, comment.id, payload)
+                                }
+                              />
+                            ) : null}
+                            {comment.can_edit ? (
                               <>
                                 <button
                                   type="button"
@@ -463,7 +557,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
             ) : (
               <EmptyState
                 title="Комментариев пока нет"
-                description="Станьте первым, кто оставит мнение о публикации."
+                description="Станьте первым, кто оставит мнение об этой публикации."
               />
             )}
           </section>

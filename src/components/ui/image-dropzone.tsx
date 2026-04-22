@@ -7,6 +7,7 @@ type ExistingImageItem = {
   id: string | number;
   alt: string;
   url: string;
+  mediaType?: "image" | "video";
 };
 
 export function ImageDropzone({
@@ -16,6 +17,8 @@ export function ImageDropzone({
   existingImages = [],
   emptyHint = "Перетащите изображения сюда или откройте системный выбор файлов.",
   browseLabel = "Выбрать фото",
+  accept = "image/*",
+  allowVideo = false,
   disabled = false,
   onAddFiles,
   onRemoveFile,
@@ -27,6 +30,8 @@ export function ImageDropzone({
   existingImages?: ExistingImageItem[];
   emptyHint?: string;
   browseLabel?: string;
+  accept?: string;
+  allowVideo?: boolean;
   disabled?: boolean;
   onAddFiles: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
@@ -41,6 +46,7 @@ export function ImageDropzone({
         id: `${file.name}-${file.lastModified}-${index}`,
         alt: file.name,
         url: URL.createObjectURL(file),
+        mediaType: file.type.startsWith("video/") ? "video" : "image",
       })),
     [files],
   );
@@ -63,7 +69,12 @@ export function ImageDropzone({
       return [];
     }
 
-    return Array.from(list).filter((file) => file.type.startsWith("image/"));
+    return Array.from(list).filter((file) => {
+      if (file.type.startsWith("image/")) {
+        return true;
+      }
+      return allowVideo && file.type.startsWith("video/");
+    });
   }
 
   function appendFiles(list: FileList | File[] | null | undefined) {
@@ -89,7 +100,7 @@ export function ImageDropzone({
         id={inputId}
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept={accept}
         multiple
         className="visually-hidden"
         onChange={(event) => {
@@ -162,8 +173,12 @@ export function ImageDropzone({
         <div className="image-dropzone-grid">
           {existingImages.map((image) => (
             <div key={`existing-${image.id}`} className="image-dropzone-card">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.url} alt={image.alt} className="gallery-image" />
+              {image.mediaType === "video" ? (
+                <video src={image.url} className="gallery-image" controls />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={image.url} alt={image.alt} className="gallery-image" />
+              )}
               {onRemoveExistingImage ? (
                 <button
                   type="button"
@@ -182,8 +197,12 @@ export function ImageDropzone({
 
           {previewImages.map((image, index) => (
             <div key={image.id} className="image-dropzone-card">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.url} alt={image.alt} className="gallery-image" />
+              {image.mediaType === "video" ? (
+                <video src={image.url} className="gallery-image" controls />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={image.url} alt={image.alt} className="gallery-image" />
+              )}
               {onRemoveFile ? (
                 <button
                   type="button"

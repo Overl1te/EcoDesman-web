@@ -9,9 +9,12 @@ import maplibregl, {
 import {
   Cuboid,
   Clock3,
+  Eye,
+  EyeOff,
   Filter,
   MapPin,
   MessageSquarePlus,
+  Plus,
   Send,
   Star,
   X,
@@ -26,11 +29,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ImageDropzone } from "@/components/ui/image-dropzone";
 import { LoadingBlock } from "@/components/ui/loading-block";
 import {
+  createUserMapMarker,
+  createUserMapMarkerComment,
+  createUserMapMarkerCommentReport,
+  createUserMapMarkerReport,
   createMapReviewReport,
   createMapPointReview,
   getMapOverview,
   getMapPointDetail,
+  getUserMapMarkerDetail,
   uploadImages,
+  uploadMedia,
 } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import { readMapOverviewCache, writeMapOverviewCache } from "@/lib/map-cache";
@@ -40,11 +49,26 @@ import {
   getPrimaryMapCategory,
 } from "@/lib/map-point-style";
 import { getMapStyle } from "@/lib/map-style";
-import type { MapOverviewResponse, MapPointDetail, MapPointSummary } from "@/lib/types";
+import type {
+  MapOverviewResponse,
+  MapPointDetail,
+  MapPointSummary,
+  UserMapMarkerDetail,
+  UserMapMarkerSummary,
+} from "@/lib/types";
 
 const pointSourceId = "eco-map-points";
 const pointHaloLayerId = "eco-map-points-halo";
 const pointLayerId = "eco-map-points";
+const userMarkerSourceId = "eco-user-map-markers";
+const userMarkerHaloLayerId = "eco-user-map-markers-halo";
+const userMarkerLayerId = "eco-user-map-markers";
+const userMarkerColor = "#C75D3A";
+const userMarkerHaloColor = "rgba(199, 93, 58, 0.22)";
+const userMarkerStrokeColor = "#F4DDD6";
+const userMarkerSelectedColor = "#D96B47";
+const userMarkerSelectedStrokeColor = "#FFF5F1";
+const userMarkersVisibilityStorageKey = "eco-map-show-user-markers";
 const nizhnyCenter: [number, number] = [43.974881, 56.315048];
 const nizhnyZoom = 11.8;
 const twoDimensionalPitch = 0;
@@ -60,6 +84,12 @@ type PointFeatureProperties = {
   strokeColor: string;
   selectedColor: string;
   selectedStrokeColor: string;
+};
+
+type UserMarkerFeatureProperties = {
+  id: number;
+  title: string;
+  isSelected: boolean;
 };
 
 function buildErrorMessage(error: unknown, fallback: string) {
@@ -92,14 +122,45 @@ function buildPointsGeoJson(points: MapPointSummary[], selectedId?: number | nul
   };
 }
 
+function buildUserMarkersGeoJson(
+  markers: UserMapMarkerSummary[],
+  selectedId?: number | null,
+): GeoJSON.FeatureCollection<GeoJSON.Point, UserMarkerFeatureProperties> {
+  return {
+    type: "FeatureCollection",
+    features: markers.map((marker) => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [marker.longitude, marker.latitude],
+      },
+      properties: {
+        id: marker.id,
+        title: marker.title,
+        isSelected: marker.id === selectedId,
+      },
+    })),
+  };
+}
+
+function readInitialUserMarkersVisibility() {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  return window.localStorage.getItem(userMarkersVisibilityStorageKey) !== "false";
+}
+
 export function MapPage() {
   const { isAuthenticated, openAuthModal } = useAuth();
   const { mode } = useThemeMode();
   const [overview, setOverview] = useState<MapOverviewResponse | null>(null);
   const [selected, setSelected] = useState<MapPointDetail | null>(null);
+  const [selectedUserMarker, setSelectedUserMarker] = useState<UserMapMarkerDetail | null>(null);
   const [activeCategory, setActiveCategory] = useState("");
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [userMarkerDetailLoading, setUserMarkerDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -110,10 +171,26 @@ export function MapPage() {
   const [mapReady, setMapReady] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [isThreeDimensional, setIsThreeDimensional] = useState(false);
+  const [showUserMarkers, setShowUserMarkers] = useState(readInitialUserMarkersVisibility);
+  const [markerAddMode, setMarkerAddMode] = useState(false);
+  const [markerDraftCoords, setMarkerDraftCoords] = useState<[number, number] | null>(null);
+  const [markerTitle, setMarkerTitle] = useState("");
+  const [markerDescription, setMarkerDescription] = useState("");
+  const [markerIsPublic, setMarkerIsPublic] = useState(true);
+  const [markerFiles, setMarkerFiles] = useState<File[]>([]);
+  const [markerBusy, setMarkerBusy] = useState(false);
+  const [markerError, setMarkerError] = useState<string | null>(null);
+  const [markerCommentFormOpen, setMarkerCommentFormOpen] = useState(false);
+  const [markerCommentBody, setMarkerCommentBody] = useState("");
+  const [markerCommentBusy, setMarkerCommentBusy] = useState(false);
+  const [markerCommentError, setMarkerCommentError] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
   const visiblePointsRef = useRef<MapPointSummary[]>([]);
+  const visibleUserMarkersRef = useRef<UserMapMarkerSummary[]>([]);
   const selectedIdRef = useRef<number | null>(null);
+  const selectedUserMarkerIdRef = useRef<number | null>(null);
+  const markerAddModeRef = useRef(false);
 
   const resetReviewForm = useCallback(() => {
     setReviewFormOpen(false);
@@ -123,10 +200,34 @@ export function MapPage() {
     setReviewError(null);
   }, []);
 
+  const resetMarkerForm = useCallback(() => {
+    setMarkerDraftCoords(null);
+    setMarkerTitle("");
+    setMarkerDescription("");
+    setMarkerIsPublic(true);
+    setMarkerFiles([]);
+    setMarkerError(null);
+  }, []);
+
+  const refreshOverview = useCallback(async () => {
+    const response = await getMapOverview();
+    setOverview(response);
+    writeMapOverviewCache(response);
+    return response;
+  }, []);
+
   const loadPointDetail = useCallback(async (pointId: number) => {
     const point = await getMapPointDetail(pointId);
     setSelected(point);
+    setSelectedUserMarker(null);
     return point;
+  }, []);
+
+  const loadUserMarkerDetail = useCallback(async (markerId: number) => {
+    const marker = await getUserMapMarkerDetail(markerId);
+    setSelectedUserMarker(marker);
+    setSelected(null);
+    return marker;
   }, []);
 
   const openPoint = useCallback(
@@ -145,6 +246,22 @@ export function MapPage() {
     [loadPointDetail],
   );
 
+  const openUserMarker = useCallback(
+    async (markerId: number) => {
+      setUserMarkerDetailLoading(true);
+      setError(null);
+
+      try {
+        await loadUserMarkerDetail(markerId);
+      } catch (nextError) {
+        setError(buildErrorMessage(nextError, "Не удалось открыть пользовательскую метку"));
+      } finally {
+        setUserMarkerDetailLoading(false);
+      }
+    },
+    [loadUserMarkerDetail],
+  );
+
   useEffect(() => {
     let active = true;
     const cachedOverview = readMapOverviewCache();
@@ -154,14 +271,12 @@ export function MapPage() {
       setLoading(false);
     }
 
-    void getMapOverview()
-      .then((response) => {
+    void refreshOverview()
+      .then(() => {
         if (!active) {
           return;
         }
 
-        setOverview(response);
-        writeMapOverviewCache(response);
         setError(null);
       })
       .catch((nextError) => {
@@ -182,11 +297,28 @@ export function MapPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshOverview]);
 
   useEffect(() => {
     resetReviewForm();
   }, [resetReviewForm, selected?.id]);
+
+  useEffect(() => {
+    setMarkerCommentFormOpen(false);
+    setMarkerCommentBody("");
+    setMarkerCommentError(null);
+  }, [selectedUserMarker?.id]);
+
+  useEffect(() => {
+    markerAddModeRef.current = markerAddMode;
+  }, [markerAddMode]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      userMarkersVisibilityStorageKey,
+      String(showUserMarkers),
+    );
+  }, [showUserMarkers]);
 
   const visiblePoints = useMemo(() => {
     if (!overview) {
@@ -201,6 +333,14 @@ export function MapPage() {
       point.categories.some((category) => category.slug === activeCategory),
     );
   }, [activeCategory, overview]);
+
+  const visibleUserMarkers = useMemo(() => {
+    if (!overview || !showUserMarkers) {
+      return [];
+    }
+
+    return overview.user_markers ?? [];
+  }, [overview, showUserMarkers]);
 
   const filterOptions = useMemo(() => {
     if (!overview) {
@@ -235,10 +375,14 @@ export function MapPage() {
     );
   }, [activeCategory, overview]);
 
+  const visibleMapItemsCount = visiblePoints.length + visibleUserMarkers.length;
+
   useEffect(() => {
     visiblePointsRef.current = visiblePoints;
+    visibleUserMarkersRef.current = visibleUserMarkers;
     selectedIdRef.current = selected?.id ?? null;
-  }, [selected?.id, visiblePoints]);
+    selectedUserMarkerIdRef.current = selectedUserMarker?.id ?? null;
+  }, [selected?.id, selectedUserMarker?.id, visiblePoints, visibleUserMarkers]);
 
   useEffect(() => {
     if (!selected || !activeCategory) {
@@ -290,6 +434,87 @@ export function MapPage() {
       setReviewError(buildErrorMessage(nextError, "Не удалось отправить отзыв"));
     } finally {
       setReviewBusy(false);
+    }
+  }
+
+  function removeMarkerFile(index: number) {
+    setMarkerFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  async function submitUserMarker() {
+    if (!markerDraftCoords) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      openAuthModal({ returnTo: "/map" });
+      return;
+    }
+
+    const title = markerTitle.trim();
+    const description = markerDescription.trim();
+    if (title.length < 3) {
+      setMarkerError("Добавьте короткое название места.");
+      return;
+    }
+    if (description.length < 3) {
+      setMarkerError("Опишите, что там интересного.");
+      return;
+    }
+
+    setMarkerBusy(true);
+    setMarkerError(null);
+
+    try {
+      const media = markerFiles.length ? await uploadMedia(markerFiles) : [];
+      const marker = await createUserMapMarker({
+        title,
+        description,
+        latitude: markerDraftCoords[1],
+        longitude: markerDraftCoords[0],
+        is_public: markerIsPublic,
+        media,
+      });
+      await refreshOverview();
+      setSelectedUserMarker(marker);
+      setSelected(null);
+      setMarkerAddMode(false);
+      resetMarkerForm();
+    } catch (nextError) {
+      setMarkerError(buildErrorMessage(nextError, "Не удалось создать метку"));
+    } finally {
+      setMarkerBusy(false);
+    }
+  }
+
+  async function submitMarkerComment() {
+    if (!selectedUserMarker) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      openAuthModal({ returnTo: "/map" });
+      return;
+    }
+
+    const body = markerCommentBody.trim();
+    if (body.length < 2) {
+      setMarkerCommentError("Напишите комментарий.");
+      return;
+    }
+
+    setMarkerCommentBusy(true);
+    setMarkerCommentError(null);
+
+    try {
+      await createUserMapMarkerComment(selectedUserMarker.id, body);
+      await loadUserMarkerDetail(selectedUserMarker.id);
+      setMarkerCommentBody("");
+      setMarkerCommentFormOpen(false);
+    } catch (nextError) {
+      setMarkerCommentError(buildErrorMessage(nextError, "Не удалось отправить комментарий"));
+    } finally {
+      setMarkerCommentBusy(false);
     }
   }
 
@@ -346,6 +571,13 @@ export function MapPage() {
               selectedIdRef.current,
             ),
           });
+          map.addSource(userMarkerSourceId, {
+            type: "geojson",
+            data: buildUserMarkersGeoJson(
+              visibleUserMarkersRef.current,
+              selectedUserMarkerIdRef.current,
+            ),
+          });
 
           map.addLayer({
             id: pointHaloLayerId,
@@ -393,21 +625,95 @@ export function MapPage() {
               ],
             },
           });
+          map.addLayer({
+            id: userMarkerHaloLayerId,
+            type: "circle",
+            source: userMarkerSourceId,
+            paint: {
+              "circle-radius": [
+                "case",
+                ["boolean", ["get", "isSelected"], false],
+                20,
+                15,
+              ],
+              "circle-color": userMarkerHaloColor,
+            },
+          });
+
+          map.addLayer({
+            id: userMarkerLayerId,
+            type: "circle",
+            source: userMarkerSourceId,
+            paint: {
+              "circle-radius": [
+                "case",
+                ["boolean", ["get", "isSelected"], false],
+                10.5,
+                8.5,
+              ],
+              "circle-color": [
+                "case",
+                ["boolean", ["get", "isSelected"], false],
+                userMarkerSelectedColor,
+                userMarkerColor,
+              ],
+              "circle-stroke-width": [
+                "case",
+                ["boolean", ["get", "isSelected"], false],
+                3,
+                2,
+              ],
+              "circle-stroke-color": [
+                "case",
+                ["boolean", ["get", "isSelected"], false],
+                userMarkerSelectedStrokeColor,
+                userMarkerStrokeColor,
+              ],
+            },
+          });
 
           map.on("mouseenter", pointLayerId, () => {
+            map.getCanvas().style.cursor = "pointer";
+          });
+          map.on("mouseenter", userMarkerLayerId, () => {
             map.getCanvas().style.cursor = "pointer";
           });
 
           map.on("mouseleave", pointLayerId, () => {
             map.getCanvas().style.cursor = "";
           });
+          map.on("mouseleave", userMarkerLayerId, () => {
+            map.getCanvas().style.cursor = "";
+          });
 
           map.on("click", pointLayerId, (event) => {
+            if (markerAddModeRef.current) {
+              return;
+            }
             const feature = event.features?.[0] as MapGeoJSONFeature | undefined;
             const pointId = Number(feature?.properties?.id);
             if (!Number.isNaN(pointId)) {
               void openPoint(pointId);
             }
+          });
+          map.on("click", userMarkerLayerId, (event) => {
+            if (markerAddModeRef.current) {
+              return;
+            }
+            const feature = event.features?.[0] as MapGeoJSONFeature | undefined;
+            const markerId = Number(feature?.properties?.id);
+            if (!Number.isNaN(markerId)) {
+              void openUserMarker(markerId);
+            }
+          });
+          map.on("click", (event) => {
+            if (!markerAddModeRef.current) {
+              return;
+            }
+            setSelected(null);
+            setSelectedUserMarker(null);
+            setMarkerDraftCoords([event.lngLat.lng, event.lngLat.lat]);
+            setMarkerError(null);
           });
 
           setMapReady(true);
@@ -443,7 +749,7 @@ export function MapPage() {
       mapInstanceRef.current = null;
       setMapReady(false);
     };
-  }, [mode, openPoint, overview]);
+  }, [mode, openPoint, openUserMarker, overview]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -461,9 +767,21 @@ export function MapPage() {
       return;
     }
 
-    if (selected) {
+    const source = map.getSource(userMarkerSourceId) as GeoJSONSource | undefined;
+    source?.setData(buildUserMarkersGeoJson(visibleUserMarkers, selectedUserMarker?.id));
+  }, [mapReady, selectedUserMarker?.id, visibleUserMarkers]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map) {
+      return;
+    }
+
+    const focusedItem = selected ?? selectedUserMarker;
+
+    if (focusedItem) {
       map.easeTo({
-        center: [selected.longitude, selected.latitude],
+        center: [focusedItem.longitude, focusedItem.latitude],
         zoom: 13.6,
         duration: 600,
       });
@@ -475,7 +793,7 @@ export function MapPage() {
       zoom: nizhnyZoom,
       duration: 600,
     });
-  }, [mapReady, selected]);
+  }, [mapReady, selected, selectedUserMarker]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -509,7 +827,7 @@ export function MapPage() {
             <div className="map-toolbar-header">
               <div className="map-toolbar-header-copy">
                 <strong className="map-toolbar-title">
-                  {`${selectedCategoryTitle} · ${visiblePoints.length} точек`}
+                  {`${selectedCategoryTitle} · ${visibleMapItemsCount} объектов`}
                 </strong>
                 <p className="eyebrow map-toolbar-label">Фильтры</p>
               </div>
@@ -526,6 +844,23 @@ export function MapPage() {
                 >
                   <Cuboid className="button-icon" />
                   <span>{isThreeDimensional ? "3D" : "2D"}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`button button-inline ${markerAddMode ? "button-primary" : "button-muted"} map-toolbar-mode`}
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      openAuthModal({ returnTo: "/map" });
+                      return;
+                    }
+                    setMarkerAddMode((current) => !current);
+                    resetMarkerForm();
+                    setSelected(null);
+                    setSelectedUserMarker(null);
+                  }}
+                >
+                  <Plus className="button-icon" />
+                  <span>{markerAddMode ? "Выберите точку" : "Место"}</span>
                 </button>
                 <button
                   type="button"
@@ -556,6 +891,28 @@ export function MapPage() {
                   <strong>{overview.points.length}</strong>
                 </button>
 
+                <button
+                  type="button"
+                  className={`map-filter-pill ${showUserMarkers ? "is-active" : ""}`}
+                  onClick={() => {
+                    setShowUserMarkers((current) => !current);
+                    setSelectedUserMarker(null);
+                  }}
+                >
+                  <span
+                    className="map-filter-pill-swatch"
+                    style={{ backgroundColor: userMarkerColor }}
+                    aria-hidden="true"
+                  />
+                  <span>Метки людей</span>
+                  <strong>{overview.user_markers?.length ?? 0}</strong>
+                  {showUserMarkers ? (
+                    <Eye className="button-icon" aria-hidden="true" />
+                  ) : (
+                    <EyeOff className="button-icon" aria-hidden="true" />
+                  )}
+                </button>
+
                 {filterOptions.map((category) => (
                   <button
                     key={category.id}
@@ -580,7 +937,11 @@ export function MapPage() {
 
           <div className="map-hint">
             <span className="map-hint-dot" />
-            <span>Нажмите на точку, чтобы открыть подробности</span>
+            <span>
+              {markerAddMode
+                ? "Нажмите на карту, чтобы поставить пользовательскую метку"
+                : "Нажмите на точку, чтобы открыть подробности"}
+            </span>
           </div>
 
           <div className="map-attribution" aria-label="Атрибуция карты">
@@ -819,6 +1180,248 @@ export function MapPage() {
                   )}
                 </div>
               ) : null}
+            </aside>
+          ) : null}
+
+          {selectedUserMarker || userMarkerDetailLoading ? (
+            <aside className={`map-detail-overlay ${selectedUserMarker ? "is-open" : ""}`}>
+              <div className="map-detail-header">
+                <div>
+                  <p className="eyebrow">Пользовательская метка</p>
+                  <h3>{selectedUserMarker?.title || "Загружаю..."}</h3>
+                </div>
+                <button
+                  type="button"
+                  className="icon-button icon-button-muted"
+                  aria-label="Закрыть карточку пользовательской метки"
+                  onClick={() => setSelectedUserMarker(null)}
+                >
+                  <X className="nav-icon" />
+                </button>
+              </div>
+
+              {userMarkerDetailLoading && !selectedUserMarker ? (
+                <LoadingBlock label="Открываю метку..." />
+              ) : selectedUserMarker ? (
+                <div className="map-detail-content">
+                  {selectedUserMarker.media.length ? (
+                    <div className="map-gallery-grid">
+                      {selectedUserMarker.media.map((item) => (
+                        <a key={item.id} href={item.media_url} target="_blank" rel="noreferrer">
+                          {item.media_type === "video" ? (
+                            <video src={item.media_url} className="gallery-image" controls />
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.media_url}
+                              alt={item.caption || selectedUserMarker.title}
+                              className="gallery-image"
+                            />
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <p className="map-detail-text">{selectedUserMarker.description}</p>
+
+                  <div className="map-detail-meta">
+                    <div className="map-meta-row">
+                      <MapPin className="nav-icon" />
+                      <span>
+                        {selectedUserMarker.latitude.toFixed(6)}, {selectedUserMarker.longitude.toFixed(6)}
+                      </span>
+                    </div>
+                    <div className="map-meta-row">
+                      <MessageSquarePlus className="nav-icon" />
+                      <span>
+                        Автор: {selectedUserMarker.author?.name || selectedUserMarker.author?.username || "Пользователь"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="section-row">
+                    <h4>Комментарии</h4>
+                    <div className="support-chat-header-chips">
+                      {!selectedUserMarker.is_owner ? (
+                        <ReportContentButton
+                          label="Пожаловаться"
+                          targetLabel={selectedUserMarker.title}
+                          onSubmit={(payload) =>
+                            createUserMapMarkerReport(selectedUserMarker.id, payload)
+                          }
+                        />
+                      ) : null}
+                      <button
+                        type="button"
+                        className="button button-muted button-inline"
+                        onClick={() => {
+                          if (!isAuthenticated) {
+                            openAuthModal({ returnTo: "/map" });
+                            return;
+                          }
+                          setMarkerCommentFormOpen((current) => !current);
+                          setMarkerCommentError(null);
+                        }}
+                      >
+                        <MessageSquarePlus className="button-icon" />
+                        <span>{markerCommentFormOpen ? "Скрыть" : "Комментировать"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {markerCommentFormOpen ? (
+                    <div className="panel stack-list map-review-form">
+                      <label className="field">
+                        <span>Комментарий</span>
+                        <textarea
+                          value={markerCommentBody}
+                          onChange={(event) => setMarkerCommentBody(event.target.value)}
+                          placeholder="Добавьте уточнение или впечатление об этом месте"
+                        />
+                      </label>
+                      {markerCommentError ? (
+                        <div className="form-banner is-error">{markerCommentError}</div>
+                      ) : null}
+                      <div className="comment-actions">
+                        <button
+                          type="button"
+                          className="button button-primary"
+                          onClick={() => void submitMarkerComment()}
+                          disabled={markerCommentBusy}
+                        >
+                          <Send className="button-icon" />
+                          <span>{markerCommentBusy ? "Отправляю..." : "Отправить"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedUserMarker.comments.length ? (
+                    <div className="stack-list">
+                      {selectedUserMarker.comments.map((comment) => (
+                        <article key={comment.id} className="review-card">
+                          <div className="review-card-header">
+                            <strong>{comment.author_name}</strong>
+                            {!comment.is_owner ? (
+                              <ReportContentButton
+                                label="Пожаловаться"
+                                targetLabel={comment.body.slice(0, 80) || "Комментарий к метке"}
+                                onSubmit={(payload) =>
+                                  createUserMapMarkerCommentReport(
+                                    selectedUserMarker.id,
+                                    comment.id,
+                                    payload,
+                                  )
+                                }
+                              />
+                            ) : null}
+                          </div>
+                          <span className="muted">{formatDateTime(comment.created_at)}</span>
+                          <p>{comment.body}</p>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      title="Комментариев пока нет"
+                      description="Можно первым добавить уточнение к пользовательской метке."
+                    />
+                  )}
+                </div>
+              ) : null}
+            </aside>
+          ) : null}
+
+          {markerDraftCoords ? (
+            <aside className="map-detail-overlay is-open">
+              <div className="map-detail-header">
+                <div>
+                  <p className="eyebrow">Новая метка</p>
+                  <h3>Интересное место</h3>
+                </div>
+                <button
+                  type="button"
+                  className="icon-button icon-button-muted"
+                  aria-label="Закрыть форму новой метки"
+                  onClick={resetMarkerForm}
+                >
+                  <X className="nav-icon" />
+                </button>
+              </div>
+
+              <div className="map-detail-content">
+                <div className="map-detail-meta">
+                  <div className="map-meta-row">
+                    <MapPin className="nav-icon" />
+                    <span>
+                      {markerDraftCoords[1].toFixed(6)}, {markerDraftCoords[0].toFixed(6)}
+                    </span>
+                  </div>
+                </div>
+
+                <label className="field">
+                  <span>Название</span>
+                  <input
+                    value={markerTitle}
+                    onChange={(event) => setMarkerTitle(event.target.value)}
+                    placeholder="Например: тихая смотровая площадка"
+                  />
+                </label>
+                <label className="field">
+                  <span>Что там интересного</span>
+                  <textarea
+                    value={markerDescription}
+                    onChange={(event) => setMarkerDescription(event.target.value)}
+                    placeholder="Опишите место, ориентиры, что стоит посмотреть"
+                  />
+                </label>
+                <label className="toggle-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={markerIsPublic}
+                    onChange={(event) => setMarkerIsPublic(event.target.checked)}
+                  />
+                  <span>Показывать метку другим пользователям</span>
+                </label>
+
+                <ImageDropzone
+                  title="Фото или видео"
+                  description="Можно приложить фотографии или короткое видео места."
+                  emptyHint="Перетащите фото/видео сюда или откройте системный выбор файлов."
+                  browseLabel={markerFiles.length ? "Добавить ещё" : "Добавить медиа"}
+                  accept="image/*,video/*"
+                  allowVideo
+                  files={markerFiles}
+                  disabled={markerBusy}
+                  onAddFiles={(nextFiles) => {
+                    setMarkerFiles((current) => [...current, ...nextFiles]);
+                  }}
+                  onRemoveFile={removeMarkerFile}
+                />
+
+                {markerError ? <div className="form-banner is-error">{markerError}</div> : null}
+
+                <div className="comment-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    onClick={() => void submitUserMarker()}
+                    disabled={markerBusy}
+                  >
+                    <Send className="button-icon" />
+                    <span>{markerBusy ? "Сохраняю..." : "Опубликовать метку"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={resetMarkerForm}
+                    disabled={markerBusy}
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
             </aside>
           ) : null}
         </section>

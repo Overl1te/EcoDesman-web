@@ -1248,14 +1248,11 @@ img {
 
 .image-dropzone {
   display: flex;
-  flex-direction: column;
   gap: 14px;
 }
 
 .image-dropzone-zone {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  text-align: center;
   padding: 18px;
   border: 1px dashed color-mix(in srgb, var(--primary) 26%, var(--border));
   border-radius: 24px;
@@ -1422,7 +1419,7 @@ img {
 
 .admin-overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -1540,6 +1537,12 @@ img {
 .admin-category-option.is-active {
   border-color: color-mix(in srgb, var(--primary) 46%, var(--border));
   background: color-mix(in srgb, var(--surface) 88%, var(--primary-soft));
+}
+
+.admin-subsection-row {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
 }
 
 .profile-top {

@@ -141,6 +141,14 @@ export interface MapPointImage {
   position: number;
 }
 
+export interface UserMapMarkerMedia {
+  id: number;
+  media_url: string;
+  media_type: "image" | "video";
+  caption: string;
+  position: number;
+}
+
 export interface MapPointReview {
   id: number;
   author_name: string;
@@ -160,6 +168,39 @@ export interface MapPointDetail extends MapPointSummary {
   reviews: MapPointReview[];
 }
 
+export interface UserMapMarkerComment {
+  id: number;
+  author_name: string;
+  author: UserSummary | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  is_owner: boolean;
+  can_edit: boolean;
+}
+
+export interface UserMapMarkerSummary {
+  id: number;
+  title: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+  author: UserSummary | null;
+  is_public: boolean;
+  is_active: boolean;
+  cover_media_url: string;
+  cover_media_type: "image" | "video" | "";
+  comments_count: number;
+  is_owner: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserMapMarkerDetail extends UserMapMarkerSummary {
+  media: UserMapMarkerMedia[];
+  comments: UserMapMarkerComment[];
+}
+
 export interface MapOverviewResponse {
   bounds: {
     south: number;
@@ -169,6 +210,7 @@ export interface MapOverviewResponse {
   };
   categories: MapPointCategory[];
   points: MapPointSummary[];
+  user_markers: UserMapMarkerSummary[];
 }
 
 export interface PaginatedResponse<T> {
@@ -185,6 +227,9 @@ export interface AdminOverview {
   map_points_count: number;
   active_map_points_count: number;
   hidden_map_points_count: number;
+  user_markers_count: number;
+  active_user_markers_count: number;
+  hidden_user_markers_count: number;
   users_count: number;
   banned_users_count: number;
   admins_count: number;
@@ -304,7 +349,7 @@ export interface SupportMessage {
 
 export interface SupportReportBadge {
   id: number;
-  target_type: "post" | "comment" | "map_review";
+  target_type: "post" | "comment" | "map_review" | "user_marker" | "user_marker_comment";
   reason: string;
   status: "new" | "in_review" | "resolved" | "rejected";
   created_at: string;
@@ -337,7 +382,7 @@ export interface SupportBotReplyResponse {
 
 export interface SupportReport {
   id: number;
-  target_type: "post" | "comment" | "map_review";
+  target_type: "post" | "comment" | "map_review" | "user_marker" | "user_marker_comment";
   target_id: number | null;
   target_label: string;
   reason: string;
@@ -352,6 +397,8 @@ export interface SupportReport {
   post_id: number | null;
   comment_id: number | null;
   review_id: number | null;
+  user_marker_id: number | null;
+  user_marker_comment_id: number | null;
 }
 
 export interface AdminMapPoint {
@@ -370,6 +417,23 @@ export interface AdminMapPoint {
   is_active: boolean;
   sort_order: number;
   review_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminUserMapMarker {
+  id: number;
+  title: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+  author: UserSummary | null;
+  media: UserMapMarkerMedia[];
+  is_public: boolean;
+  is_active: boolean;
+  moderation_note: string;
+  comments_count: number;
+  reports_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -454,4 +518,17 @@ export interface AdminMapPointWritePayload {
   sort_order: number;
   category_ids: number[];
   image_urls: string[];
+}
+
+export interface UserMapMarkerWritePayload {
+  title: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+  is_public: boolean;
+  media?: Array<{
+    media_url: string;
+    media_type: "image" | "video";
+    caption?: string;
+  }>;
 }

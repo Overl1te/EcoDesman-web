@@ -12,14 +12,17 @@ import {
   banUser,
   createAdminMapPoint,
   deleteAdminMapPoint,
+  deleteAdminUserMapMarker,
   deletePost,
   getAdminOverview,
   listAdminMapCategories,
   listAdminMapPoints,
+  listAdminUserMapMarkers,
   listAdminPosts,
   listAdminUsers,
   unbanUser,
   updateAdminMapPoint,
+  updateAdminUserMapMarker,
   updatePost,
   updateUserRole,
   warnUser,
@@ -29,6 +32,7 @@ import type {
   AdminMapPoint,
   AdminMapPointWritePayload,
   AdminOverview,
+  AdminUserMapMarker,
   AdminUser,
   MapPointCategory,
   PaginatedResponse,
@@ -181,6 +185,9 @@ export function AdminPage() {
   const [pointStatus, setPointStatus] = useState<PointStatusFilter>("all");
   const [selectedPointId, setSelectedPointId] = useState<number | "new">("new");
   const [pointForm, setPointForm] = useState<MapPointFormState>(createEmptyPointForm());
+  const [userMarkers, setUserMarkers] = useState<PaginatedResponse<AdminUserMapMarker> | null>(null);
+  const [userMarkersLoading, setUserMarkersLoading] = useState(false);
+  const [userMarkersError, setUserMarkersError] = useState<string | null>(null);
 
   async function loadOverview() {
     setOverviewLoading(true);
@@ -270,6 +277,28 @@ export function AdminPage() {
     }
   }
 
+  async function loadUserMarkers() {
+    setUserMarkersLoading(true);
+    setUserMarkersError(null);
+
+    try {
+      setUserMarkers(
+        await listAdminUserMapMarkers({
+          page_size: 100,
+          search: pointSearch.trim() || undefined,
+          is_active:
+            pointStatus === "all"
+              ? undefined
+              : pointStatus === "active",
+        }),
+      );
+    } catch (error) {
+      setUserMarkersError(getErrorMessage(error));
+    } finally {
+      setUserMarkersLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!canAccessAdmin) {
       return;
@@ -281,6 +310,7 @@ export function AdminPage() {
       loadUsers(1),
       loadCategories(),
       loadPoints(),
+      loadUserMarkers(),
     ]);
     // Initial admin bootstrap should run once after access is confirmed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -424,6 +454,26 @@ export function AdminPage() {
     });
   }
 
+  async function handleToggleUserMarker(marker: AdminUserMapMarker) {
+    await runMutation(`user-marker-toggle-${marker.id}`, async () => {
+      await updateAdminUserMapMarker(marker.id, { is_active: !marker.is_active });
+    }, async () => {
+      await Promise.all([loadUserMarkers(), loadOverview()]);
+    });
+  }
+
+  async function handleDeleteUserMarker(marker: AdminUserMapMarker) {
+    if (!window.confirm("Удалить пользовательскую метку вместе с комментариями?")) {
+      return;
+    }
+
+    await runMutation(`user-marker-delete-${marker.id}`, async () => {
+      await deleteAdminUserMapMarker(marker.id);
+    }, async () => {
+      await Promise.all([loadUserMarkers(), loadOverview()]);
+    });
+  }
+
   const hasMorePosts = Boolean(posts && posts.count > postsPage * POST_PAGE_SIZE);
   const hasMoreUsers = Boolean(users && users.count > usersPage * USER_PAGE_SIZE);
 
@@ -472,6 +522,7 @@ export function AdminPage() {
             }
             if (activeTab === "map") {
               void loadPoints();
+              void loadUserMarkers();
             }
             if (activeTab === "users") {
               void loadUsers(usersPage);
@@ -525,6 +576,13 @@ export function AdminPage() {
               <span>Точки карты: </span>
               <small style={{color: '#a6a6a6'}}>
                 {overview.active_map_points_count} активных, {overview.hidden_map_points_count} скрытых
+              </small>
+            </div>
+            <div className="stat-card">
+              <strong>{compactCount(overview.user_markers_count ?? 0)} </strong>
+              <span>Метки людей: </span>
+              <small style={{color: '#a6a6a6'}}>
+                {overview.active_user_markers_count ?? 0} показываются, {overview.hidden_user_markers_count ?? 0} скрыты
               </small>
             </div>
             <div className="stat-card">
@@ -937,7 +995,7 @@ export function AdminPage() {
                 className="filters-toolbar"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  void loadPoints();
+                  void Promise.all([loadPoints(), loadUserMarkers()]);
                 }}
               >
                 <div className="filters-toolbar-head">
@@ -1027,6 +1085,78 @@ export function AdminPage() {
                       ))}
                     </div>
                   </button>
+                ))}
+              </div>
+
+              <div className="section-row admin-subsection-row">
+                <div>
+                  <h3>Пользовательские метки</h3>
+                  <p className="muted">
+                    Модерация мест, которые пользователи добавили с карты.
+                  </p>
+                </div>
+                <span className="filters-status">
+                  {userMarkers ? `${userMarkers.count} меток` : "Без данных"}
+                </span>
+              </div>
+
+              {userMarkersLoading && !userMarkers ? (
+                <LoadingBlock label="Загружаю пользовательские метки..." />
+              ) : null}
+              {userMarkersError ? (
+                <EmptyState
+                  title="Не удалось загрузить пользовательские метки"
+                  description={userMarkersError}
+                  action={
+                    <button type="button" className="button button-primary" onClick={() => void loadUserMarkers()}>
+                      Повторить
+                    </button>
+                  }
+                />
+              ) : null}
+
+              <div className="admin-point-list">
+                {userMarkers?.results.map((marker) => (
+                  <article key={marker.id} className="point-row">
+                    <div className="section-row">
+                      <strong>{marker.title}</strong>
+                      <span
+                        className={`admin-status ${
+                          marker.is_active && marker.is_public ? "is-positive" : "is-warning"
+                        }`}
+                      >
+                        {marker.is_active && marker.is_public ? "Показывается" : "Скрыта"}
+                      </span>
+                    </div>
+                    <p className="muted">
+                      {marker.author?.name || marker.author?.username || "Пользователь"} ·{" "}
+                      {marker.latitude.toFixed(6)}, {marker.longitude.toFixed(6)}
+                    </p>
+                    <p className="admin-card-text">{marker.description}</p>
+                    <div className="metrics-row">
+                      <span className="chip">{marker.comments_count} комментариев</span>
+                      <span className="chip">{marker.reports_count} жалоб</span>
+                      <span className="chip">{marker.media.length} медиа</span>
+                    </div>
+                    <div className="post-actions">
+                      <button
+                        type="button"
+                        className="button button-muted button-inline"
+                        disabled={mutationKey === `user-marker-toggle-${marker.id}`}
+                        onClick={() => void handleToggleUserMarker(marker)}
+                      >
+                        {marker.is_active ? "Скрыть" : "Показать"}
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-danger button-inline"
+                        disabled={mutationKey === `user-marker-delete-${marker.id}`}
+                        onClick={() => void handleDeleteUserMarker(marker)}
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  </article>
                 ))}
               </div>
             </section>

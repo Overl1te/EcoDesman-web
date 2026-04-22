@@ -1,6 +1,6 @@
 import type { MapOverviewResponse } from "@/lib/types";
 
-const MAP_OVERVIEW_CACHE_KEY = "eco-vyhuhol-map-overview-v2";
+const MAP_OVERVIEW_CACHE_KEY = "eco-vyhuhol-map-overview-v3";
 const MAP_OVERVIEW_TTL_MS = 24 * 60 * 60 * 1000;
 
 type MapOverviewCachePayload = {

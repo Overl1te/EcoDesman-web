@@ -5,6 +5,7 @@ import type {
   AdminMapPoint,
   AdminMapPointWritePayload,
   AdminOverview,
+  AdminUserMapMarker,
   AdminUser,
   AuthSession,
   CurrentUser,
@@ -26,6 +27,8 @@ import type {
   SupportThreadDetail,
   SupportThreadSummary,
   UserSummary,
+  UserMapMarkerDetail,
+  UserMapMarkerWritePayload,
 } from "@/lib/types";
 
 type RequestOptions = RequestInit & {
@@ -427,7 +430,7 @@ export async function updateSupportTeamThread(
 }
 
 export async function createContentReport(payload: {
-  target_type: "post" | "comment" | "map_review";
+  target_type: "post" | "comment" | "map_review" | "user_marker" | "user_marker_comment";
   target_id: number;
   reason: "spam" | "abuse" | "misinformation" | "dangerous" | "copyright" | "other";
   details?: string;
@@ -468,6 +471,29 @@ export async function createMapReviewReport(
   payload: { reason: "spam" | "abuse" | "misinformation" | "dangerous" | "copyright" | "other"; details?: string },
 ): Promise<SupportReport> {
   return request<SupportReport>(`/map/points/${pointId}/reviews/${reviewId}/report`, {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createUserMapMarkerReport(
+  markerId: number,
+  payload: { reason: "spam" | "abuse" | "misinformation" | "dangerous" | "copyright" | "other"; details?: string },
+): Promise<SupportReport> {
+  return request<SupportReport>(`/map/user-markers/${markerId}/report`, {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createUserMapMarkerCommentReport(
+  markerId: number,
+  commentId: number,
+  payload: { reason: "spam" | "abuse" | "misinformation" | "dangerous" | "copyright" | "other"; details?: string },
+): Promise<SupportReport> {
+  return request<SupportReport>(`/map/user-markers/${markerId}/comments/${commentId}/report`, {
     method: "POST",
     auth: true,
     body: JSON.stringify(payload),
@@ -557,6 +583,31 @@ export async function deleteMapPointReview(pointId: number, reviewId: number): P
   });
 }
 
+export async function getUserMapMarkerDetail(markerId: number): Promise<UserMapMarkerDetail> {
+  return request<UserMapMarkerDetail>(`/map/user-markers/${markerId}`, { auth: true });
+}
+
+export async function createUserMapMarker(
+  payload: UserMapMarkerWritePayload,
+): Promise<UserMapMarkerDetail> {
+  return request<UserMapMarkerDetail>("/map/user-markers", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createUserMapMarkerComment(
+  markerId: number,
+  body: string,
+): Promise<void> {
+  await request(`/map/user-markers/${markerId}/comments`, {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify({ body }),
+  });
+}
+
 export async function listAdminMapCategories(): Promise<MapPointCategory[]> {
   return request<MapPointCategory[]>("/admin/map/categories", { auth: true });
 }
@@ -609,4 +660,61 @@ export async function deleteAdminMapPoint(pointId: number): Promise<void> {
     method: "DELETE",
     auth: true,
   });
+}
+
+export async function listAdminUserMapMarkers(filters: {
+  search?: string;
+  is_active?: boolean;
+  page_size?: number;
+}): Promise<PaginatedResponse<AdminUserMapMarker>> {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (typeof filters.is_active === "boolean") {
+    params.set("is_active", String(filters.is_active));
+  }
+  if (typeof filters.page_size === "number") {
+    params.set("page_size", String(filters.page_size));
+  }
+
+  const url = `/admin/map/user-markers${params.size ? `?${params.toString()}` : ""}`;
+  return request<PaginatedResponse<AdminUserMapMarker>>(url, { auth: true });
+}
+
+export async function updateAdminUserMapMarker(
+  markerId: number,
+  payload: { is_active?: boolean; is_public?: boolean; moderation_note?: string },
+): Promise<AdminUserMapMarker> {
+  return request<AdminUserMapMarker>(`/admin/map/user-markers/${markerId}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAdminUserMapMarker(markerId: number): Promise<void> {
+  await request(`/admin/map/user-markers/${markerId}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
+export async function uploadMedia(files: File[]): Promise<UserMapMarkerWritePayload["media"]> {
+  const uploaded: NonNullable<UserMapMarkerWritePayload["media"]> = [];
+
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const result = await request<{ url: string; media_type: "image" | "video" }>("/uploads/media", {
+      method: "POST",
+      auth: true,
+      body: formData,
+    });
+    uploaded.push({
+      media_url: result.url,
+      media_type: result.media_type,
+      caption: "",
+    });
+  }
+
+  return uploaded;
 }

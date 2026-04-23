@@ -4,7 +4,7 @@ export const APP_SHORT_NAME = "EcoDesman";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
 
 function normalizeSiteUrl(value: string | undefined): string {
-  const fallback = "https://example.com";
+  const fallback = "https://xn--b1apekb3anb5cpb.xn--p1ai";
 
   if (!value) {
     return fallback;

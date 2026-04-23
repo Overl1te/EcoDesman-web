@@ -7,7 +7,11 @@ import {
   useSyncExternalStore,
 } from "react";
 
-type ThemeMode = "light" | "dark";
+import {
+  THEME_STORAGE_EVENT,
+  THEME_STORAGE_KEY,
+  type ThemeMode,
+} from "@/lib/theme";
 
 interface ThemeContextValue {
   mode: ThemeMode;
@@ -15,15 +19,22 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const STORAGE_KEY = "eco-desman-web-theme";
-const STORAGE_EVENT = "eco-desman-web-theme-change";
+
+function applyTheme(mode: ThemeMode) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.documentElement.dataset.theme = mode;
+  document.documentElement.style.colorScheme = mode;
+}
 
 function readStoredTheme(): ThemeMode | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
   return stored === "light" || stored === "dark" ? stored : null;
 }
 
@@ -44,7 +55,7 @@ function subscribeToStoredTheme(onStoreChange: () => void) {
     if (
       event instanceof StorageEvent &&
       event.key &&
-      event.key !== STORAGE_KEY
+      event.key !== THEME_STORAGE_KEY
     ) {
       return;
     }
@@ -53,11 +64,11 @@ function subscribeToStoredTheme(onStoreChange: () => void) {
   };
 
   window.addEventListener("storage", handleStorage);
-  window.addEventListener(STORAGE_EVENT, handleStorage);
+  window.addEventListener(THEME_STORAGE_EVENT, handleStorage);
 
   return () => {
     window.removeEventListener("storage", handleStorage);
-    window.removeEventListener(STORAGE_EVENT, handleStorage);
+    window.removeEventListener(THEME_STORAGE_EVENT, handleStorage);
   };
 }
 
@@ -85,7 +96,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const mode: ThemeMode = storedMode ?? systemMode;
 
   useEffect(() => {
-    document.documentElement.dataset.theme = mode;
+    applyTheme(mode);
   }, [mode]);
 
   const toggleMode = () => {
@@ -94,8 +105,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const nextMode = mode === "dark" ? "light" : "dark";
-    window.localStorage.setItem(STORAGE_KEY, nextMode);
-    window.dispatchEvent(new Event(STORAGE_EVENT));
+    applyTheme(nextMode);
+    window.localStorage.setItem(THEME_STORAGE_KEY, nextMode);
+    window.dispatchEvent(new Event(THEME_STORAGE_EVENT));
   };
 
   return (

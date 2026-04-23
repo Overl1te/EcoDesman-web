@@ -11,6 +11,7 @@ import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
 } from "@/lib/seo";
+import { getThemeInitScript } from "@/lib/theme";
 import "./globals.css";
 
 const manrope = localFont({
@@ -81,7 +82,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={manrope.variable}>
+    <html lang="ru" className={manrope.variable} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: getThemeInitScript() }}
+        />
+      </head>
       <body>
         <SiteStructuredData />
         <AppProviders>{children}</AppProviders>

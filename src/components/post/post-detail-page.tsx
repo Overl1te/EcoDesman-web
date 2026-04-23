@@ -37,6 +37,11 @@ import {
   updateComment,
 } from "@/lib/api";
 import { formatDate, formatDateTime } from "@/lib/format";
+import {
+  buildPostEditPath,
+  buildPostPath,
+  buildProfilePath,
+} from "@/lib/paths";
 import type { PostComment, PostDetail } from "@/lib/types";
 
 function getKindLabel(kind: PostDetail["kind"]) {
@@ -85,7 +90,8 @@ export function PostDetailPage({ postId }: { postId: number }) {
     void load();
   }, [load]);
 
-  const primaryImageUrl = useMemo(() => post?.images[0]?.image_url ?? `/posts/${postId}`, [post, postId]);
+  const postPath = useMemo(() => (post ? buildPostPath(post) : `/posts/${postId}`), [post, postId]);
+  const primaryImageUrl = useMemo(() => post?.images[0]?.image_url ?? null, [post]);
 
   const resetCommentEditor = () => {
     setEditingCommentId(null);
@@ -96,7 +102,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
     event.preventDefault();
 
     if (!isAuthenticated) {
-      openAuthModal({ returnTo: `/posts/${postId}` });
+      openAuthModal({ returnTo: postPath });
       return;
     }
 
@@ -121,7 +127,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
     }
 
     if (!isAuthenticated) {
-      openAuthModal({ returnTo: `/posts/${post.id}` });
+      openAuthModal({ returnTo: postPath });
       return;
     }
 
@@ -141,7 +147,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
     }
 
     if (!isAuthenticated) {
-      openAuthModal({ returnTo: `/posts/${post.id}` });
+      openAuthModal({ returnTo: postPath });
       return;
     }
 
@@ -176,7 +182,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
     }
 
     if (!isAuthenticated) {
-      openAuthModal({ returnTo: `/posts/${post.id}` });
+      openAuthModal({ returnTo: postPath });
       return;
     }
 
@@ -230,7 +236,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
       title={post?.title || "Публикация"}
       actions={
         post?.can_edit ? (
-          <Link href={`/posts/${post.id}/edit`} className="button button-muted">
+          <Link href={buildPostEditPath(post.id)} className="button button-muted">
             <PencilLine className="button-icon" />
             <span>Редактировать</span>
           </Link>
@@ -244,12 +250,12 @@ export function PostDetailPage({ postId }: { postId: number }) {
         <>
           <article className="panel stack-list">
             <header className="post-header">
-              <Link href={`/profiles/${post.author.id}`} className="author-link">
+              <Link href={buildProfilePath(post.author)} className="author-link">
                 <Avatar
                   user={{
                     avatar_url: post.author.avatar_url,
                     name: post.author.name,
-                    username: post.author.name,
+                    username: post.author.username,
                   }}
                 />
 
@@ -303,14 +309,20 @@ export function PostDetailPage({ postId }: { postId: number }) {
             ) : null}
 
             {post.images.length ? (
-              <div className="gallery-grid">
+              <div className="post-gallery">
                 {post.images.map((image) => (
-                  <a key={image.id} href={image.image_url} target="_blank" rel="noreferrer">
+                  <a
+                    key={image.id}
+                    href={image.image_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="post-gallery-link"
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={image.image_url}
                       alt={post.title || "Изображение публикации"}
-                      className="gallery-image"
+                      className="post-gallery-image"
                     />
                   </a>
                 ))}
@@ -357,10 +369,12 @@ export function PostDetailPage({ postId }: { postId: number }) {
                 <span>{post.is_favorited ? "В избранном" : "В избранное"}</span>
               </button>
 
-              <Link href={primaryImageUrl} className="button button-inline button-ghost">
-                <ArrowUpRight className="button-icon" />
-                <span>Открыть фото</span>
-              </Link>
+              {primaryImageUrl ? (
+                <Link href={primaryImageUrl} className="button button-inline button-ghost">
+                  <ArrowUpRight className="button-icon" />
+                  <span>Открыть фото</span>
+                </Link>
+              ) : null}
 
               {!post.is_owner ? (
                 <ReportContentButton
@@ -434,7 +448,7 @@ export function PostDetailPage({ postId }: { postId: number }) {
                   <button
                     type="button"
                     className="button button-primary"
-                    onClick={() => openAuthModal({ returnTo: `/posts/${post.id}` })}
+                    onClick={() => openAuthModal({ returnTo: postPath })}
                   >
                     Войти
                   </button>
@@ -451,12 +465,12 @@ export function PostDetailPage({ postId }: { postId: number }) {
                   return (
                     <article key={comment.id} className="comment-card">
                       <div className="comment-header">
-                        <Link href={`/profiles/${comment.author.id}`} className="author-link">
+                        <Link href={buildProfilePath(comment.author)} className="author-link">
                           <Avatar
                             user={{
                               avatar_url: comment.author.avatar_url,
                               name: comment.author.name,
-                              username: comment.author.name,
+                              username: comment.author.username,
                             }}
                             size="sm"
                           />

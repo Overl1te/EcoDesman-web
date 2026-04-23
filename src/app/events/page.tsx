@@ -3,6 +3,7 @@ import { connection } from "next/server";
 
 import { EventsFeedPage } from "@/components/feed/events-feed-page";
 import { StructuredDataScript } from "@/components/seo/structured-data-script";
+import { buildPostPath } from "@/lib/paths";
 import { listServerUpcomingEvents } from "@/lib/server-api";
 import {
   absoluteUrl,
@@ -42,7 +43,7 @@ function toAbsoluteMediaUrl(url: string): string {
 }
 
 function buildEventStructuredData(event: PostListItem) {
-  const url = absoluteUrl(`/posts/${event.id}`);
+  const url = absoluteUrl(buildPostPath(event));
 
   return {
     "@type": "Event",
@@ -85,7 +86,7 @@ export default async function EventsPage() {
         itemListElement: upcomingEvents.map((event, index) => ({
           "@type": "ListItem",
           position: index + 1,
-          url: absoluteUrl(`/posts/${event.id}`),
+          url: absoluteUrl(buildPostPath(event)),
           name: event.title?.trim() || "Экологическое событие",
         })),
       }

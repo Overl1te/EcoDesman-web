@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingBlock } from "@/components/ui/loading-block";
 import { listNotifications, readAllNotifications, readNotification } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
+import { buildPostPathFromParts } from "@/lib/paths";
 import type { NotificationItem, NotificationResponse } from "@/lib/types";
 
 function getNotificationTargetHref(notification: NotificationItem): string | null {
@@ -16,7 +17,11 @@ function getNotificationTargetHref(notification: NotificationItem): string | nul
     return `/support?thread=${notification.support_thread_id}`;
   }
   if (notification.post_id) {
-    return `/posts/${notification.post_id}`;
+    return buildPostPathFromParts({
+      postId: notification.post_id,
+      postSlug: notification.post_slug,
+      authorUsername: notification.post_author_username,
+    });
   }
   return null;
 }

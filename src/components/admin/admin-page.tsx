@@ -45,6 +45,7 @@ import {
   warnUser,
 } from "@/lib/api";
 import { compactCount, formatDateTime } from "@/lib/format";
+import { buildPostEditPath, buildPostPath } from "@/lib/paths";
 import type {
   AdminMapPoint,
   AdminMapPointWritePayload,
@@ -900,11 +901,14 @@ export function AdminPage() {
                     </div>
 
                     <div className="post-actions">
-                      <Link href={`/posts/${post.id}`} className="button button-muted button-inline">
+                      <Link
+                        href={buildPostPath(post)}
+                        className="button button-muted button-inline"
+                      >
                         Открыть
                       </Link>
                       <Link
-                        href={`/posts/${post.id}/edit`}
+                        href={buildPostEditPath(post.id)}
                         className="button button-muted button-inline"
                       >
                         Редактировать

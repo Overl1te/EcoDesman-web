@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ImageDropzone } from "@/components/ui/image-dropzone";
 import { LoadingBlock } from "@/components/ui/loading-block";
 import { createPost, getPost, updatePost, uploadImages } from "@/lib/api";
+import { buildPostEditPath, buildPostPath } from "@/lib/paths";
 import type { PostDetail, PostWritePayload } from "@/lib/types";
 
 const EMPTY_EVENT_FORM = {
@@ -87,7 +88,7 @@ export function PostEditorPage({ postId }: { postId?: number }) {
               image_urls: [...existingImageUrls, ...uploadedUrls],
             };
       const result = postId ? await updatePost(postId, payload) : await createPost(payload);
-      router.push(`/posts/${result.id}`);
+      router.push(buildPostPath(result));
     } catch (nextError) {
       setError(
         nextError instanceof Error
@@ -110,7 +111,7 @@ export function PostEditorPage({ postId }: { postId?: number }) {
               type="button"
               className="button button-primary"
               onClick={() =>
-                openAuthModal({ returnTo: postId ? `/posts/${postId}/edit` : "/posts/new" })
+                openAuthModal({ returnTo: postId ? buildPostEditPath(postId) : "/posts/new" })
               }
             >
               Войти

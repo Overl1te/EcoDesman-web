@@ -36,6 +36,7 @@ export interface CurrentUser extends UserSummary {
 export interface PostAuthor {
   id: number;
   name: string;
+  username: string;
   avatar_url: string;
   role: UserRole;
   status_text: string;
@@ -59,6 +60,7 @@ export interface PostComment {
 
 export interface PostListItem {
   id: number;
+  slug: string;
   title: string;
   body: string;
   preview_text: string;
@@ -104,6 +106,8 @@ export interface NotificationItem {
     role: UserRole;
   };
   post_id: number | null;
+  post_slug: string | null;
+  post_author_username: string | null;
   comment_id: number | null;
   support_thread_id: number | null;
   report_id: number | null;
@@ -486,6 +490,7 @@ export interface PostWritePayload {
 
 export interface CalendarEventEntry {
   id: number;
+  slug: string;
   title: string;
   body: string;
   kind: "news" | "event" | "story";

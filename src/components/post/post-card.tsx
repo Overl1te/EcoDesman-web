@@ -9,6 +9,7 @@ import { ReportContentButton } from "@/components/support/report-content-button"
 import { Avatar } from "@/components/ui/avatar";
 import { createPostReport, toggleFavorite, toggleLike } from "@/lib/api";
 import { compactCount, formatDate, formatDateTime } from "@/lib/format";
+import { buildPostPath, buildProfilePath } from "@/lib/paths";
 import type { PostListItem } from "@/lib/types";
 
 function getKindLabel(kind: PostListItem["kind"]) {
@@ -32,6 +33,8 @@ export function PostCard({
 }) {
   const { isAuthenticated, openAuthModal } = useAuth();
   const [busy, setBusy] = useState<"like" | "favorite" | null>(null);
+  const postPath = buildPostPath(post);
+  const authorPath = buildProfilePath(post.author);
 
   const handleLike = async () => {
     if (!isAuthenticated) {
@@ -76,12 +79,12 @@ export function PostCard({
   return (
     <article className="post-card">
       <header className="post-card-header">
-        <Link href={`/profiles/${post.author.id}`} className="author-link">
+        <Link href={authorPath} className="author-link">
           <Avatar
             user={{
               avatar_url: post.author.avatar_url,
               name: post.author.name,
-              username: post.author.name,
+              username: post.author.username,
             }}
           />
 
@@ -105,7 +108,7 @@ export function PostCard({
         </div>
       </header>
 
-      <Link href={`/posts/${post.id}`} className="post-content">
+      <Link href={postPath} className="post-content">
         {post.title ? <h3>{post.title}</h3> : null}
         <p>{post.preview_text || post.body}</p>
       </Link>
@@ -136,7 +139,7 @@ export function PostCard({
       ) : null}
 
       {post.preview_image_url ? (
-        <Link href={`/posts/${post.id}`} className="post-image-link">
+        <Link href={postPath} className="post-image-link">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={post.preview_image_url}
@@ -194,7 +197,7 @@ export function PostCard({
             />
           ) : null}
 
-          <Link href={`/posts/${post.id}`} className="button button-inline button-ghost">
+          <Link href={postPath} className="button button-inline button-ghost">
             <ArrowUpRight className="button-icon" />
             <span>Открыть</span>
           </Link>

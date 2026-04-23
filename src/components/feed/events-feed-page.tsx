@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingBlock } from "@/components/ui/loading-block";
 import { getEventCalendar, setEventCancelled } from "@/lib/api";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { buildPostPathFromParts, buildProfilePath } from "@/lib/paths";
 import type { CalendarEventEntry } from "@/lib/types";
 
 const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -304,12 +305,12 @@ export function EventsFeedPage({
                     className={`events-agenda-card${eventItem.is_event_cancelled ? " is-cancelled" : ""}`}
                   >
                     <div className="events-agenda-card-head">
-                      <Link href={`/profiles/${eventItem.author.id}`} className="author-link">
+                      <Link href={buildProfilePath(eventItem.author)} className="author-link">
                         <Avatar
                           user={{
                             avatar_url: eventItem.author.avatar_url,
                             name: eventItem.author.name,
-                            username: eventItem.author.name,
+                            username: eventItem.author.username,
                           }}
                           size="sm"
                         />
@@ -359,7 +360,14 @@ export function EventsFeedPage({
                     </div>
 
                     <div className="events-agenda-card-actions">
-                      <Link href={`/posts/${eventItem.id}`} className="button button-inline button-primary">
+                      <Link
+                        href={buildPostPathFromParts({
+                          postId: eventItem.id,
+                          postSlug: eventItem.slug,
+                          authorUsername: eventItem.author.username,
+                        })}
+                        className="button button-inline button-primary"
+                      >
                         Открыть пост
                       </Link>
                       {eventItem.can_edit ? (

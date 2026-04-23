@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { SITE_URL } from "@/lib/config";
+import { buildPostPath, buildProfilePathFromParts } from "@/lib/paths";
 import { listPublicSitemapEntities } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
@@ -34,13 +35,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { posts, profiles } = await listPublicSitemapEntities();
     const dynamicEntries: MetadataRoute.Sitemap = [
       ...posts.map((post) => ({
-        url: buildAbsoluteUrl(`/posts/${post.id}`),
+        url: buildAbsoluteUrl(buildPostPath(post)),
         lastModified: post.published_at,
         changeFrequency: "weekly" as const,
         priority: post.kind === "event" ? 0.76 : 0.68,
       })),
       ...profiles.map((profile) => ({
-        url: buildAbsoluteUrl(`/profiles/${profile.id}`),
+        url: buildAbsoluteUrl(
+          buildProfilePathFromParts({
+            userId: profile.id,
+            username: profile.username,
+          }),
+        ),
         lastModified: profile.lastModified,
         changeFrequency: "weekly" as const,
         priority: 0.58,

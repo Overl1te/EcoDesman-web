@@ -90,6 +90,22 @@ export async function getServerPost(postId: number): Promise<PostDetail | null> 
   }
 }
 
+export async function getServerPostBySlug(
+  username: string,
+  postSlug: string,
+): Promise<PostDetail | null> {
+  try {
+    return await serverApiGet<PostDetail>(
+      `/posts/by-slug/${encodeURIComponent(username)}/${encodeURIComponent(postSlug)}`,
+      {
+        revalidate: 300,
+      },
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function getServerPublicProfile(
   userId: number,
 ): Promise<CurrentUser | null> {
@@ -97,6 +113,21 @@ export async function getServerPublicProfile(
     return await serverApiGet<CurrentUser>(`/profiles/${userId}`, {
       revalidate: 900,
     });
+  } catch {
+    return null;
+  }
+}
+
+export async function getServerPublicProfileByUsername(
+  username: string,
+): Promise<CurrentUser | null> {
+  try {
+    return await serverApiGet<CurrentUser>(
+      `/profiles/by-username/${encodeURIComponent(username)}`,
+      {
+        revalidate: 900,
+      },
+    );
   } catch {
     return null;
   }
@@ -147,10 +178,10 @@ export async function listServerUpcomingEvents(
 
 export async function listPublicSitemapEntities(): Promise<{
   posts: PostListItem[];
-  profiles: Array<{ id: number; lastModified: string }>;
+  profiles: Array<{ id: number; username: string; lastModified: string }>;
 }> {
   const posts = new Map<number, PostListItem>();
-  const profiles = new Map<number, string>();
+  const profiles = new Map<number, { username: string; lastModified: string }>();
 
   for (let page = 1; page <= MAX_SITEMAP_PAGES; page += 1) {
     const response = await serverApiGet<PaginatedResponse<PostListItem>>(
@@ -171,13 +202,16 @@ export async function listPublicSitemapEntities(): Promise<{
 
       posts.set(item.id, item);
 
-      const currentLastModified = profiles.get(item.author.id);
+      const currentProfile = profiles.get(item.author.id);
       if (
-        !currentLastModified ||
+        !currentProfile ||
         new Date(item.published_at).getTime() >
-          new Date(currentLastModified).getTime()
+          new Date(currentProfile.lastModified).getTime()
       ) {
-        profiles.set(item.author.id, item.published_at);
+        profiles.set(item.author.id, {
+          username: item.author.username,
+          lastModified: item.published_at,
+        });
       }
     }
 
@@ -188,9 +222,10 @@ export async function listPublicSitemapEntities(): Promise<{
 
   return {
     posts: [...posts.values()],
-    profiles: [...profiles.entries()].map(([id, lastModified]) => ({
+    profiles: [...profiles.entries()].map(([id, profile]) => ({
       id,
-      lastModified,
+      username: profile.username,
+      lastModified: profile.lastModified,
     })),
   };
 }

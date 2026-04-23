@@ -122,30 +122,34 @@ jobs:
           script: |
             set -eu
             cd "$VPS_DEPLOY_PATH"
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            mkdir -p .deploy
+            (
+              flock -w 300 9
+              echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
-            touch .env
-            set_env() {
-              key="$1"
-              value="$2"
-              if grep -q "^${key}=" .env; then
-                sed -i "s|^${key}=.*|${key}=${value}|" .env
+              touch .env
+              set_env() {
+                key="$1"
+                value="$2"
+                if grep -q "^${key}=" .env; then
+                  sed -i "s|^${key}=.*|${key}=${value}|" .env
+                else
+                  printf '%s=%s\n' "$key" "$value" >> .env
+                fi
+              }
+
+              set_env FRONTEND_IMAGE "$FRONTEND_IMAGE"
+              docker compose pull frontend
+              set +e
+              docker compose pull web backup
+              backend_pull_status=$?
+              set -e
+
+              if [ "$backend_pull_status" -eq 0 ]; then
+                docker compose up -d --remove-orphans
               else
-                printf '%s=%s\n' "$key" "$value" >> .env
+                docker compose up -d --no-deps frontend
               fi
-            }
-
-            set_env FRONTEND_IMAGE "$FRONTEND_IMAGE"
-            docker compose pull frontend
-            set +e
-            docker compose pull web backup
-            backend_pull_status=$?
-            set -e
-
-            if [ "$backend_pull_status" -eq 0 ]; then
-              docker compose up -d --remove-orphans
-            else
-              docker compose up -d --no-deps frontend
-            fi
-            docker compose ps
-            docker image prune -f
+              docker compose ps
+              docker image prune -f
+            ) 9>.deploy/deploy.lock

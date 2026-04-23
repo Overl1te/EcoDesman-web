@@ -14,7 +14,7 @@ concurrency:
 env:
   IMAGE_NAME: ghcr.io/overl1te/ecodesman-web
   NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || '/api/v1' }}
-  NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'http://example.com' }}
+  NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://example.com' }}
 
 jobs:
   checks:

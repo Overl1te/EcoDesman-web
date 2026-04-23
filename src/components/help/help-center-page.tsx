@@ -129,7 +129,10 @@ export function HelpCenterPage() {
               </div>
               <div>
                 <dt>Разделов</dt>
-                <dd>{content.service_blocks.length + content.overview.cards.length}</dd>
+                <dd>
+                  {content.service_blocks.length +
+                    content.overview.cards.length}
+                </dd>
               </div>
               <div>
                 <dt>Формат</dt>
@@ -179,12 +182,43 @@ export function HelpCenterPage() {
                 <p>{block.body}</p>
               </article>
             ))}
+            <article className="help-company-item">
+              <strong>Репозитории проекта</strong>
+              <p>
+                Исходный код разделен на три части:{" "}
+                <a
+                  href="https://github.com/Overl1te/EcoDesman-server"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  backend
+                </a>
+                ,{" "}
+                <a
+                  href="https://github.com/Overl1te/EcoDesman-web"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  web
+                </a>{" "}
+                и{" "}
+                <a
+                  href="https://github.com/Overl1te/EcoDesman-mobile"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  mobile
+                </a>
+                .
+              </p>
+            </article>
             <article className="help-company-item is-accent">
               <strong>Операторская реакция отдельно</strong>
               <p>
                 Если нужен разбор инцидента, ручная проверка жалобы или история
-                переписки, используйте раздел <Link href="/support">«Помощь»</Link>.
-                Справка фиксирует правила, но не заменяет поддержку.
+                переписки, используйте раздел{" "}
+                <Link href="/support">«Помощь»</Link>. Справка фиксирует
+                правила, но не заменяет поддержку.
               </p>
             </article>
           </div>
@@ -212,7 +246,11 @@ export function HelpCenterPage() {
               aria-label="Навигация по документам"
             >
               {content.documents.map((document) => (
-                <a key={document.id} href={`#${document.id}`} className="help-doc-chip">
+                <a
+                  key={document.id}
+                  href={`#${document.id}`}
+                  className="help-doc-chip"
+                >
                   <span>{document.label}</span>
                   <small>{document.approval.revision}</small>
                 </a>
@@ -221,7 +259,11 @@ export function HelpCenterPage() {
 
             <div className="help-documents-list">
               {content.documents.map((document) => (
-                <article key={document.id} id={document.id} className="help-document">
+                <article
+                  key={document.id}
+                  id={document.id}
+                  className="help-document"
+                >
                   <div className="help-document-head">
                     <div>
                       <p className="eyebrow">Документ</p>
@@ -268,7 +310,10 @@ export function HelpCenterPage() {
 
                   <div className="help-document-sections">
                     {document.sections.map((section) => (
-                      <section key={section.title} className="help-document-section">
+                      <section
+                        key={section.title}
+                        className="help-document-section"
+                      >
                         <h5>{section.title}</h5>
                         <ParagraphList paragraphs={section.paragraphs} />
                         <BulletList bullets={section.bullets} />

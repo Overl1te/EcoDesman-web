@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Auth",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+import { buildNoIndexMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildNoIndexMetadata(
+  "Вход",
+  "Служебная страница авторизации ЭкоВыхухоль.",
+);
 
 export default function AuthRoutePage() {
   redirect("/");

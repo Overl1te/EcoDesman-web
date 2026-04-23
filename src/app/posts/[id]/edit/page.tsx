@@ -1,10 +1,18 @@
-import { PostEditorPage } from "@/components/post/post-editor-page";
+import type { Metadata } from "next";
 
-export default async function EditPostRoutePage({
-  params,
-}: {
+import { PostEditorPage } from "@/components/post/post-editor-page";
+import { buildNoIndexMetadata } from "@/lib/seo";
+
+type EditPostRouteProps = {
   params: Promise<{ id: string }>;
-}) {
+};
+
+export const metadata: Metadata = buildNoIndexMetadata(
+  "Редактирование публикации",
+  "Служебная страница редактирования публикации ЭкоВыхухоль.",
+);
+
+export default async function EditPostRoutePage({ params }: EditPostRouteProps) {
   const resolvedParams = await params;
   return <PostEditorPage postId={Number(resolvedParams.id)} />;
 }

@@ -3,12 +3,12 @@ import { Suspense } from "react";
 
 import { SupportCenterPage } from "@/components/support/support-center-page";
 import { LoadingBlock } from "@/components/ui/loading-block";
+import { buildNoIndexMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Support",
-  description:
-    "Support center and moderation tools for reports, threads, and user questions.",
-};
+export const metadata: Metadata = buildNoIndexMetadata(
+  "Поддержка",
+  "Центр поддержки ЭкоВыхухоль для обращений, жалоб и вопросов пользователей.",
+);
 
 export default function SupportPage() {
   return (

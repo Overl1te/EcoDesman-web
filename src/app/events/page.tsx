@@ -3,12 +3,14 @@ import { Suspense } from "react";
 
 import { EventsFeedPage } from "@/components/feed/events-feed-page";
 import { LoadingBlock } from "@/components/ui/loading-block";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Events",
+export const metadata: Metadata = buildPageMetadata({
+  title: "Экологические события",
   description:
-    "Upcoming environmental events, meetups, and community activities.",
-};
+    "Экологические мероприятия, встречи и акции сообщества ЭкоВыхухоль: выбирайте события, участвуйте и следите за обновлениями.",
+  path: "/events",
+});
 
 export default function EventsPage() {
   return (

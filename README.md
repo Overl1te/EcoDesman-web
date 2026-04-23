@@ -70,10 +70,30 @@ Production build обычно использует:
 ```bash
 NEXT_PUBLIC_API_BASE_URL=/api/v1
 NEXT_PUBLIC_SITE_URL=https://xn--b1apekb3anb5cpb.xn--p1ai
+NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=
+NEXT_PUBLIC_YANDEX_VERIFICATION=
 ```
 
 > [!TIP]
 > Относительный `NEXT_PUBLIC_API_BASE_URL=/api/v1` удобен для production: браузер ходит на тот же домен, а nginx проксирует запросы в Django.
+
+## SEO
+
+Сайт подготовлен для русскоязычной индексации:
+
+- главная, карта, события, скачивание приложения и справка попадают в `sitemap.xml`;
+- личные и служебные разделы закрыты от индексации через metadata и `robots.txt`;
+- у публичных страниц есть русские `title`, `description`, canonical, Open Graph и карточки для соцсетей;
+- в корень страницы добавлена JSON-LD разметка `Organization`, `WebSite` и `WebApplication`;
+- `robots.txt` публикует ссылку на карту сайта и основной `Host`.
+
+Проверочные адреса production:
+
+- [https://эковыхухоль.рф/robots.txt](https://эковыхухоль.рф/robots.txt)
+- [https://эковыхухоль.рф/sitemap.xml](https://эковыхухоль.рф/sitemap.xml)
+
+> [!IMPORTANT]
+> Для Google Search Console и Яндекс Вебмастера права можно подтвердить метатегом: положите значения в `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` и `NEXT_PUBLIC_YANDEX_VERIFICATION`, затем пересоберите frontend.
 
 ## Production
 

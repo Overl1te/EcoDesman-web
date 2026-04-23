@@ -2,7 +2,15 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 
 import { AppProviders } from "@/components/providers/app-providers";
+import { SiteStructuredData } from "@/components/seo/site-structured-data";
 import { APP_NAME, SITE_URL } from "@/lib/config";
+import {
+  INDEXABLE_ROBOTS,
+  OPEN_GRAPH_IMAGE,
+  searchEngineVerification,
+  SITE_DESCRIPTION,
+  SITE_KEYWORDS,
+} from "@/lib/seo";
 import "./globals.css";
 
 const manrope = localFont({
@@ -21,58 +29,34 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: APP_NAME,
   title: {
-    default: `${APP_NAME} - eco map and community`,
+    default: `${APP_NAME} — экологическая карта и сообщество`,
     template: `%s | ${APP_NAME}`,
   },
-  description:
-    "Eco map with recycling points, user markers, comments, and environmental events.",
-  keywords: [
-    "eco map",
-    "recycling",
-    "eco points",
-    "environment",
-    "user markers",
-    "nizhny novgorod",
-    "ecodesman",
-  ],
+  description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
   alternates: {
     canonical: "/",
+    languages: {
+      "ru-RU": "/",
+    },
   },
+  verification: searchEngineVerification(),
   openGraph: {
     type: "website",
     locale: "ru_RU",
     url: "/",
     siteName: APP_NAME,
-    title: `${APP_NAME} - eco map and community markers`,
-    description:
-      "Find eco points, add your own places with media, and explore community activity on the map.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: `${APP_NAME} open graph image`,
-      },
-    ],
+    title: `${APP_NAME} — экологическая карта и городское сообщество`,
+    description: SITE_DESCRIPTION,
+    images: [OPEN_GRAPH_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${APP_NAME} - eco map and community markers`,
-    description:
-      "Recycling points, user map markers, photos, videos, and comments in one map app.",
-    images: ["/og-image.png"],
+    title: `${APP_NAME} — экологическая карта и городское сообщество`,
+    description: SITE_DESCRIPTION,
+    images: [OPEN_GRAPH_IMAGE.url],
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-video-preview": -1,
-      "max-snippet": -1,
-    },
-  },
+  robots: INDEXABLE_ROBOTS,
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -86,7 +70,7 @@ export const metadata: Metadata = {
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
-  category: "environment",
+  category: "экология",
 };
 
 export const viewport: Viewport = {
@@ -105,6 +89,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className={manrope.variable}>
       <body>
+        <SiteStructuredData />
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

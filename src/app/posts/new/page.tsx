@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 
 import { PostEditorPage } from "@/components/post/post-editor-page";
+import { buildNoIndexMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Create Post",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+export const metadata: Metadata = buildNoIndexMetadata(
+  "Новая публикация",
+  "Редактор новой публикации ЭкоВыхухоль.",
+);
 
 export default function NewPostRoutePage() {
   return <PostEditorPage />;

@@ -3,12 +3,14 @@ import { Suspense } from "react";
 
 import { MainFeedPage } from "@/components/feed/main-feed-page";
 import { LoadingBlock } from "@/components/ui/loading-block";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Eco Feed",
+export const metadata: Metadata = buildPageMetadata({
+  title: "ЭкоВыхухоль — экологическая лента",
   description:
-    "Main eco community feed with stories, events, and updates from EcoDesman.",
-};
+    "Лента ЭкоВыхухоль помогает следить за экологическими публикациями, инициативами и событиями сообщества в одном месте.",
+  path: "/",
+});
 
 export default function HomePage() {
   return (

@@ -5,6 +5,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
 
 function normalizeSiteUrl(value: string | undefined): string {
   const fallback = "https://xn--b1apekb3anb5cpb.xn--p1ai";
+  const localHostnames = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
 
   if (!value) {
     return fallback;
@@ -14,6 +15,11 @@ function normalizeSiteUrl(value: string | undefined): string {
     const parsed = new URL(value);
     parsed.hash = "";
     parsed.search = "";
+
+    if (parsed.protocol === "http:" && !localHostnames.has(parsed.hostname)) {
+      parsed.protocol = "https:";
+    }
+
     return parsed.toString().replace(/\/$/, "");
   } catch {
     return fallback;

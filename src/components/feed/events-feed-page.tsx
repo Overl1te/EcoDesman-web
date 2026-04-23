@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -23,7 +23,7 @@ import type { CalendarEventEntry } from "@/lib/types";
 
 const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-export function EventsFeedPage() {
+export function EventsFeedPage({ intro }: { intro?: ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, openAuthModal } = useAuth();
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
@@ -204,6 +204,7 @@ export function EventsFeedPage() {
         </div>
       }
     >
+      {intro}
       {loading ? <LoadingBlock label="Загружаю календарь мероприятий..." /> : null}
       {error && !loading ? <EmptyState title="Не удалось открыть календарь" description={error} /> : null}
 

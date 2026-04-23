@@ -937,8 +937,140 @@ img {
 
 .page-content-map {
   height: calc(100vh - 64px);
-  padding: 0;
+  padding: 14px 16px 16px;
   overflow: hidden;
+}
+
+.route-summary {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  padding: 24px 26px;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border));
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(45, 106, 79, 0.14), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, var(--surface)), var(--card));
+  box-shadow: 0 24px 80px rgba(22, 42, 27, 0.08);
+}
+
+.page-content-feed .route-summary {
+  width: min(100%, 860px);
+}
+
+.route-summary-copy {
+  display: grid;
+  gap: 10px;
+  max-width: 72ch;
+}
+
+.route-summary h2,
+.route-summary-copy p {
+  margin: 0;
+}
+
+.route-summary h2 {
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.route-summary-copy p:last-child {
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.route-summary-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.route-summary-highlights li {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100%;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.route-summary-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.route-summary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+  font-weight: 700;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.route-summary-link:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+  background: color-mix(in srgb, var(--surface) 84%, var(--primary-soft));
+}
+
+@media (max-width: 1180px) {
+  .page-content-map {
+    height: auto;
+    overflow: visible;
+  }
+
+  .page-content-map .map-stage {
+    min-height: 68vh;
+  }
+}
+
+@media (max-width: 760px) {
+  .route-summary {
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .route-summary h2 {
+    font-size: 1.6rem;
+  }
+
+  .route-summary-highlights {
+    grid-template-columns: 1fr;
+  }
+
+  .route-summary-links {
+    flex-direction: column;
+  }
+
+  .route-summary-link {
+    width: 100%;
+  }
+
+  .page-content-map {
+    height: auto;
+    padding: 12px 12px 100px;
+    overflow: visible;
+  }
+
+  .page-content-map .map-stage {
+    min-height: 70svh;
+    border-radius: 26px;
+  }
 }
 
 .panel,
@@ -2530,8 +2662,11 @@ img {
   --map-detail-surface: var(--surface);
   --map-detail-card: var(--card);
   position: relative;
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   background: var(--map-stage-bg);
+  border-radius: 30px;
+  overflow: hidden;
 }
 
 .map-stage::after {
@@ -3509,7 +3644,8 @@ img {
   }
 
   .page-content-map {
-    height: calc(100vh - 126px);
+    height: auto;
+    overflow: visible;
   }
 
   .map-toolbar {
@@ -3750,7 +3886,8 @@ img {
   }
 
   .page-content-map {
-    height: calc(100svh - 110px);
+    height: auto;
+    overflow: visible;
   }
 
   .two-columns,
@@ -5055,7 +5192,7 @@ img {
   grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.82fr);
   gap: 16px;
   align-items: start;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
 }
 

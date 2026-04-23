@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { FeedFilters } from "@/components/feed/feed-filters";
 import { FeedPagination } from "@/components/feed/feed-pagination";
@@ -22,8 +22,67 @@ const EMPTY_PAGE_RESPONSE: PaginatedResponse<PostListItem> = {
   results: [],
 };
 
+type FeedPageContentProps = {
+  title: string;
+  loadingLabel: string;
+  emptyStateTitle: string;
+  emptyStateDescription: string;
+  intro?: ReactNode;
+  eventsOnly?: boolean;
+  kind?: "event";
+  favoritesOnly?: boolean;
+  requiresAuth?: boolean;
+  authReturnTo?: string;
+  authTitle?: string;
+  authDescription?: string;
+};
+
 export function FeedPageContent({
   title,
+  loadingLabel,
+  emptyStateTitle,
+  emptyStateDescription,
+  intro,
+  eventsOnly = false,
+  kind,
+  favoritesOnly = false,
+  requiresAuth = false,
+  authReturnTo = "/",
+  authTitle = "Нужен вход",
+  authDescription = "",
+}: FeedPageContentProps) {
+  return (
+    <AppShell
+      title={title}
+      actions={<TopbarSearch placeholder="Поиск публикаций и авторов" />}
+      contentClassName="page-content-feed"
+    >
+      {intro}
+      <div className="feed-main">
+        <section className="panel feed-panel">
+          <FeedFilters eventsOnly={eventsOnly} />
+        </section>
+
+        <Suspense fallback={<LoadingBlock label={loadingLabel} />}>
+          <FeedPageResults
+            loadingLabel={loadingLabel}
+            emptyStateTitle={emptyStateTitle}
+            emptyStateDescription={emptyStateDescription}
+            eventsOnly={eventsOnly}
+            kind={kind}
+            favoritesOnly={favoritesOnly}
+            requiresAuth={requiresAuth}
+            authReturnTo={authReturnTo}
+            authTitle={authTitle}
+            authDescription={authDescription}
+          />
+        </Suspense>
+      </div>
+    </AppShell>
+  );
+}
+
+function FeedPageResults({
   loadingLabel,
   emptyStateTitle,
   emptyStateDescription,
@@ -34,19 +93,7 @@ export function FeedPageContent({
   authReturnTo = "/",
   authTitle = "Нужен вход",
   authDescription = "",
-}: {
-  title: string;
-  loadingLabel: string;
-  emptyStateTitle: string;
-  emptyStateDescription: string;
-  eventsOnly?: boolean;
-  kind?: "event";
-  favoritesOnly?: boolean;
-  requiresAuth?: boolean;
-  authReturnTo?: string;
-  authTitle?: string;
-  authDescription?: string;
-}) {
+}: Omit<FeedPageContentProps, "intro" | "title">) {
   const searchParams = useSearchParams();
   const { isAuthenticated, openAuthModal } = useAuth();
   const [data, setData] = useState<PaginatedResponse<PostListItem>>(EMPTY_PAGE_RESPONSE);
@@ -98,63 +145,55 @@ export function FeedPageContent({
     };
   }, [filters, filtersKey, isAuthenticated, isAuthBlocked, requiresAuth]);
 
+  if (isAuthBlocked) {
+    return (
+      <EmptyState
+        title={authTitle}
+        description={authDescription}
+        action={
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() => openAuthModal({ returnTo: authReturnTo })}
+          >
+            Войти
+          </button>
+        }
+      />
+    );
+  }
+
   return (
-    <AppShell
-      title={title}
-      actions={<TopbarSearch placeholder="Поиск публикаций и авторов" />}
-      contentClassName="page-content-feed"
-    >
-      {isAuthBlocked ? (
-        <EmptyState
-          title={authTitle}
-          description={authDescription}
-          action={
-            <button
-              type="button"
-              className="button button-primary"
-              onClick={() => openAuthModal({ returnTo: authReturnTo })}
-            >
-              Войти
-            </button>
-          }
-        />
-      ) : (
-        <div className="feed-main">
-          <section className="panel feed-panel">
-            <FeedFilters eventsOnly={eventsOnly} />
-          </section>
+    <>
+      {loading ? <LoadingBlock label={loadingLabel} /> : null}
+      {visibleError ? (
+        <EmptyState title="Ошибка загрузки" description={visibleError} />
+      ) : null}
 
-          {loading ? <LoadingBlock label={loadingLabel} /> : null}
-          {visibleError ? (
-            <EmptyState title="Ошибка загрузки" description={visibleError} />
-          ) : null}
+      {!loading && !visibleError ? (
+        <>
+          <FeedPostList
+            posts={data.results}
+            emptyStateTitle={emptyStateTitle}
+            emptyStateDescription={emptyStateDescription}
+            onPostUpdated={(nextPost) => {
+              setData((current) => ({
+                ...current,
+                results: current.results.map((item) =>
+                  item.id === nextPost.id ? nextPost : item,
+                ),
+              }));
+            }}
+          />
 
-          {!loading && !visibleError ? (
-            <>
-              <FeedPostList
-                posts={data.results}
-                emptyStateTitle={emptyStateTitle}
-                emptyStateDescription={emptyStateDescription}
-                onPostUpdated={(nextPost) => {
-                  setData((current) => ({
-                    ...current,
-                    results: current.results.map((item) =>
-                      item.id === nextPost.id ? nextPost : item,
-                    ),
-                  }));
-                }}
-              />
-
-              <FeedPagination
-                currentPage={filters.page || 1}
-                hasPrevious={Boolean(data.previous)}
-                hasNext={Boolean(data.next)}
-                searchParamsString={searchParams.toString()}
-              />
-            </>
-          ) : null}
-        </div>
-      )}
-    </AppShell>
+          <FeedPagination
+            currentPage={filters.page || 1}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            searchParamsString={searchParams.toString()}
+          />
+        </>
+      ) : null}
+    </>
   );
 }

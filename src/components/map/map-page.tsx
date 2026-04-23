@@ -19,7 +19,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -186,7 +186,7 @@ function readInitialUserMarkersVisibility() {
   return window.localStorage.getItem(userMarkersVisibilityStorageKey) !== "false";
 }
 
-export function MapPage() {
+export function MapPage({ intro }: { intro?: ReactNode }) {
   const { isAuthenticated, openAuthModal } = useAuth();
   const { mode } = useThemeMode();
   const [overview, setOverview] = useState<MapOverviewResponse | null>(null);
@@ -894,6 +894,7 @@ export function MapPage() {
 
   return (
     <AppShell title="Карта" contentClassName="page-content-map">
+      {intro}
       {loading ? <LoadingBlock label="Загружаю карту..." /> : null}
       {error ? <EmptyState title="Ошибка загрузки карты" description={error} /> : null}
 

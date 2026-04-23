@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { connection } from "next/server";
 
 import { MainFeedPage } from "@/components/feed/main-feed-page";
-import { LoadingBlock } from "@/components/ui/loading-block";
+import { RouteSummary } from "@/components/seo/route-summary";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -12,10 +12,28 @@ export const metadata: Metadata = buildPageMetadata({
   path: "/",
 });
 
-export default function HomePage() {
+export default async function HomePage() {
+  await connection();
+
   return (
-    <Suspense fallback={<LoadingBlock label="Загружаю ленту..." />}>
-      <MainFeedPage />
-    </Suspense>
+    <MainFeedPage
+      intro={
+        <RouteSummary
+          eyebrow="Экосообщество Нижнего Новгорода"
+          title="Новости, экоточки и события в одном месте"
+          description="ЭкоВыхухоль объединяет городские экологические публикации, локальные инициативы, полезные места и календарь встреч, чтобы сообществу было проще находить идеи, точки переработки и актуальные экоактивности."
+          highlights={[
+            "Лента публикаций, инициатив и городских экологических новостей",
+            "Интерактивная карта пунктов переработки, экоточек и пользовательских меток",
+            "Календарь экологических мероприятий, встреч и акций сообщества",
+          ]}
+          links={[
+            { href: "/map", label: "Открыть карту" },
+            { href: "/events", label: "Посмотреть события" },
+            { href: "/help", label: "Справка по платформе" },
+          ]}
+        />
+      }
+    />
   );
 }

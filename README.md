@@ -1,14 +1,17 @@
 # ЭкоВыхухоль Web
 
-Next.js web-клиент для `ЭкоВыхухоль`.
+Next.js frontend для `ЭкоВыхухоль`.
 
 ## Архитектура
 
 - frontend: Next.js App Router
 - backend: Django API
 - production split:
-  - `https://example.com` -> Next.js
-  - `https://api.example.com` -> Django API
+  - `http://example.com` -> Next.js
+  - `http://api.example.com` -> Django API
+
+Production намеренно работает только по `HTTP`.
+Привязка домена сама по себе не включает SSL: в стеке нет certbot, ACME automation, Caddy, Traefik или listener на `443`.
 
 ## Переменные
 
@@ -16,12 +19,14 @@ Next.js web-клиент для `ЭкоВыхухоль`.
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-Для production через общий Docker-стек переменная приходит из backend `compose.yaml` как build arg и runtime env:
+Для production frontend использует runtime env из backend runtime stack:
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api/v1
+NEXT_PUBLIC_API_BASE_URL=/api/v1
+NEXT_PUBLIC_SITE_URL=http://example.com
 ```
 
 ## Локальный запуск
@@ -44,21 +49,21 @@ npm run dev
 
 ## Production
 
-Production фронт собирается не из этого репозитория отдельно, а из общего compose в backend-репо:
+Production frontend живет как pinned GHCR image.
 
-```bash
-cd ../EcoDesman-server
-docker compose up --build -d
-```
+Frontend CI/CD:
 
-Он использует:
-
-- [Dockerfile](C:/Users/maksi/Documents/GitHub/eco-desman-web/Dockerfile)
-- [`.dockerignore`](C:/Users/maksi/Documents/GitHub/eco-desman-web/.dockerignore)
+- проверяет код и собирает Next.js image
+- пушит image в GHCR
+- обновляет только `FRONTEND_IMAGE` в runtime `.env` на VPS
+- делает `docker compose pull frontend`
+- перезапускает только `frontend`
+- не тянет и не перекатывает backend сервисы во время frontend rollout
 
 ## Проверка
 
 ```bash
 npm run lint
 npm run build
+docker build .
 ```

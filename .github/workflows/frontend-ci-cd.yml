@@ -7,10 +7,14 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: frontend-cicd-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   IMAGE_NAME: ghcr.io/overl1te/ecodesman-web
   NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || '/api/v1' }}
-  NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://example.com' }}
+  NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'http://example.com' }}
 
 jobs:
   checks:
@@ -120,7 +124,7 @@ jobs:
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           envs: FRONTEND_IMAGE,GHCR_USER,GHCR_TOKEN,VPS_DEPLOY_PATH
           script: |
-            set -eu
+            set -euo pipefail
             cd "$VPS_DEPLOY_PATH"
             mkdir -p .deploy
             (
@@ -139,17 +143,18 @@ jobs:
               }
 
               set_env FRONTEND_IMAGE "$FRONTEND_IMAGE"
+              docker compose config >/dev/null
               docker compose pull frontend
-              set +e
-              docker compose pull web backup
-              backend_pull_status=$?
-              set -e
+              docker compose up -d --no-deps frontend
 
-              if [ "$backend_pull_status" -eq 0 ]; then
-                docker compose up -d --remove-orphans
-              else
-                docker compose up -d --no-deps frontend
-              fi
-              docker compose ps
-              docker image prune -f
+              for _ in $(seq 1 60); do
+                if curl -fsS http://127.0.0.1/ >/dev/null; then
+                  break
+                fi
+                sleep 2
+              done
+
+              curl -fsS http://127.0.0.1/ >/dev/null
+              docker compose ps frontend proxy
+              docker image prune -af
             ) 9>.deploy/deploy.lock

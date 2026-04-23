@@ -186,7 +186,13 @@ function readInitialUserMarkersVisibility() {
   return window.localStorage.getItem(userMarkersVisibilityStorageKey) !== "false";
 }
 
-export function MapPage({ intro }: { intro?: ReactNode }) {
+export function MapPage({
+  intro,
+  afterContent,
+}: {
+  intro?: ReactNode;
+  afterContent?: ReactNode;
+}) {
   const { isAuthenticated, openAuthModal } = useAuth();
   const { mode } = useThemeMode();
   const [overview, setOverview] = useState<MapOverviewResponse | null>(null);
@@ -893,7 +899,7 @@ export function MapPage({ intro }: { intro?: ReactNode }) {
   }, [isThreeDimensional, mapReady]);
 
   return (
-    <AppShell title="Карта" contentClassName="page-content-map">
+    <AppShell title="Карта" titleTag="p" contentClassName="page-content-map">
       {intro}
       {loading ? <LoadingBlock label="Загружаю карту..." /> : null}
       {error ? <EmptyState title="Ошибка загрузки карты" description={error} /> : null}
@@ -1535,6 +1541,7 @@ export function MapPage({ intro }: { intro?: ReactNode }) {
           ) : null}
         </section>
       ) : null}
+      {afterContent}
     </AppShell>
   );
 }

@@ -3,15 +3,17 @@ import type { Metadata } from "next";
 import { APP_NAME, SITE_URL } from "@/lib/config";
 
 export const SITE_DESCRIPTION =
-  "ЭкоВыхухоль — экологическая карта и сообщество: пункты переработки, экоточки, события, публикации и городские инициативы рядом с вами.";
+  "ЭкоВыхухоль — экологическая карта, события и сообщество Нижнего Новгорода: экоточки, пункты переработки, городские инициативы, публикации и полезные места рядом с вами.";
 
 export const SITE_KEYWORDS = [
   "ЭкоВыхухоль",
   "эковыхухоль",
   "экологическая карта",
+  "карта экоточек",
   "экоточки",
   "пункты переработки",
   "раздельный сбор",
+  "экологические мероприятия",
   "экологические события",
   "экосообщество",
   "городские инициативы",
@@ -52,6 +54,23 @@ type PageMetadataOptions = {
   path?: string;
   index?: boolean;
   keywords?: string[];
+};
+
+export type SeoFaqItem = {
+  question: string;
+  answer: string;
+};
+
+type StructuredDataThing = {
+  "@type": string;
+  name: string;
+};
+
+type StructuredPageOptions = {
+  path: string;
+  name: string;
+  description: string;
+  about?: string[];
 };
 
 export function normalizePath(path = "/"): string {
@@ -110,6 +129,114 @@ export function buildNoIndexMetadata(
     title,
     ...(description ? { description } : {}),
     robots: NO_INDEX_ROBOTS,
+  };
+}
+
+function buildAboutThings(about: string[] = []): StructuredDataThing[] {
+  return about.map((item) => ({
+    "@type": "Thing",
+    name: item,
+  }));
+}
+
+export function buildCollectionPageStructuredData({
+  path,
+  name,
+  description,
+  about = [],
+}: StructuredPageOptions) {
+  const url = absoluteUrl(path);
+
+  return {
+    "@type": "CollectionPage",
+    "@id": `${url}#webpage`,
+    url,
+    name,
+    description,
+    inLanguage: "ru-RU",
+    isPartOf: {
+      "@id": `${absoluteUrl()}#website`,
+    },
+    publisher: {
+      "@id": `${absoluteUrl()}#organization`,
+    },
+    ...(about.length ? { about: buildAboutThings(about) } : {}),
+  };
+}
+
+export function buildWebPageStructuredData({
+  path,
+  name,
+  description,
+  about = [],
+}: StructuredPageOptions) {
+  const url = absoluteUrl(path);
+
+  return {
+    "@type": "WebPage",
+    "@id": `${url}#webpage`,
+    url,
+    name,
+    description,
+    inLanguage: "ru-RU",
+    isPartOf: {
+      "@id": `${absoluteUrl()}#website`,
+    },
+    publisher: {
+      "@id": `${absoluteUrl()}#organization`,
+    },
+    ...(about.length ? { about: buildAboutThings(about) } : {}),
+  };
+}
+
+export function buildFaqStructuredData(path: string, faqs: SeoFaqItem[]) {
+  const url = absoluteUrl(path);
+
+  return {
+    "@type": "FAQPage",
+    "@id": `${url}#faq`,
+    url,
+    inLanguage: "ru-RU",
+    mainEntity: faqs.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+}
+
+export function buildMobileApplicationStructuredData({
+  path,
+  name,
+  description,
+  downloadUrls,
+}: {
+  path: string;
+  name: string;
+  description: string;
+  downloadUrls: string[];
+}) {
+  const url = absoluteUrl(path);
+
+  return {
+    "@type": "MobileApplication",
+    "@id": `${url}#application`,
+    name,
+    url,
+    description,
+    inLanguage: "ru-RU",
+    applicationCategory: "LifestyleApplication",
+    operatingSystem: "Android, iOS",
+    image: absoluteUrl(OPEN_GRAPH_IMAGE.url),
+    ...(downloadUrls.length ? { downloadUrl: downloadUrls } : {}),
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "RUB",
+    },
   };
 }
 

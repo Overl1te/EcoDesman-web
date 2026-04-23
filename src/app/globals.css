@@ -886,7 +886,7 @@ img {
   white-space: nowrap;
 }
 
-.topbar-heading h1 {
+.topbar-title {
   margin: 0;
   font-size: clamp(2rem, 1.4rem + 1vw, 2.8rem);
   line-height: 1;
@@ -932,13 +932,13 @@ img {
 .page-content-events {
   height: calc(100vh - 64px);
   padding: 14px 16px 16px;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .page-content-map {
   height: calc(100vh - 64px);
   padding: 14px 16px 16px;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .route-summary {
@@ -964,17 +964,24 @@ img {
   max-width: 72ch;
 }
 
+.route-summary h1,
 .route-summary h2,
 .route-summary-copy p {
   margin: 0;
 }
 
+.route-summary h1,
 .route-summary h2 {
   font-size: 2rem;
   line-height: 1.1;
 }
 
-.route-summary-copy p:last-child {
+.route-summary-copy-body {
+  display: grid;
+  gap: 10px;
+}
+
+.route-summary-copy-body p {
   color: var(--text-soft);
   line-height: 1.65;
 }
@@ -1007,13 +1014,13 @@ img {
 }
 
 .route-summary-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  gap: 4px;
+  min-width: min(100%, 240px);
   min-height: 42px;
-  padding: 0 16px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 24px;
   background: color-mix(in srgb, var(--card) 90%, transparent);
   font-weight: 700;
   transition:
@@ -1022,7 +1029,90 @@ img {
     transform 0.2s ease;
 }
 
+.route-summary-link small {
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
 .route-summary-link:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+  background: color-mix(in srgb, var(--surface) 84%, var(--primary-soft));
+}
+
+.route-topic-grid,
+.route-faq,
+.route-link-grid {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  padding: 24px 26px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--card) 96%, var(--surface));
+}
+
+.page-content-feed .route-topic-grid,
+.page-content-feed .route-faq,
+.page-content-feed .route-link-grid {
+  width: min(100%, 860px);
+}
+
+.route-section-head {
+  display: grid;
+  gap: 8px;
+}
+
+.route-section-head h2,
+.route-topic-card h2,
+.route-faq-item h3,
+.route-link-card strong {
+  margin: 0;
+}
+
+.route-topic-grid-items,
+.route-faq-list,
+.route-link-grid-items {
+  display: grid;
+  gap: 12px;
+}
+
+.route-topic-grid-items,
+.route-link-grid-items {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.route-topic-card,
+.route-faq-item,
+.route-link-card {
+  display: grid;
+  gap: 10px;
+  min-height: 100%;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface) 70%, var(--card));
+}
+
+.route-topic-card p,
+.route-faq-item p,
+.route-link-card p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.route-link-card {
+  text-decoration: none;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.route-link-card:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
   background: color-mix(in srgb, var(--surface) 84%, var(--primary-soft));
@@ -1045,6 +1135,7 @@ img {
     border-radius: 24px;
   }
 
+  .route-summary h1,
   .route-summary h2 {
     font-size: 1.6rem;
   }
@@ -1059,6 +1150,18 @@ img {
 
   .route-summary-link {
     width: 100%;
+  }
+
+  .route-topic-grid,
+  .route-faq,
+  .route-link-grid {
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .route-topic-grid-items,
+  .route-link-grid-items {
+    grid-template-columns: 1fr;
   }
 
   .page-content-map {
@@ -2663,7 +2766,7 @@ img {
   --map-detail-card: var(--card);
   position: relative;
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 72vh;
   background: var(--map-stage-bg);
   border-radius: 30px;
   overflow: hidden;
@@ -3751,7 +3854,8 @@ img {
     min-width: 0;
   }
 
-  .topbar-heading h1 {
+  .topbar-heading h1,
+  .topbar-title {
     font-size: 1.34rem;
     line-height: 1.1;
     white-space: normal;
@@ -5193,7 +5297,7 @@ img {
   gap: 16px;
   align-items: start;
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 720px;
 }
 
 .events-topbar-actions {

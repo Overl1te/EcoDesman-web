@@ -50,12 +50,14 @@ export function AppShell({
   actions,
   contentClassName,
   shellContentClassName,
+  titleTag = "h1",
 }: {
   title: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
   contentClassName?: string;
   shellContentClassName?: string;
+  titleTag?: "h1" | "p";
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -91,6 +93,7 @@ export function AppShell({
     !pathname.startsWith("/help") &&
     !pathname.startsWith("/download") &&
     !pathname.startsWith("/admin");
+  const TitleTag = titleTag;
 
   useEffect(() => {
     if (
@@ -263,7 +266,7 @@ export function AppShell({
       <div className={`shell-content${shellContentClassName ? ` ${shellContentClassName}` : ""}`}>
         <header className={`topbar ${actions ? "topbar-with-primary" : "topbar-compact-only"}`}>
           <div className="topbar-heading">
-            <h1>{title}</h1>
+            <TitleTag className="topbar-title">{title}</TitleTag>
           </div>
           <div className={`topbar-actions ${actions ? "has-primary-slot" : "is-compact-only"}`}>
             {actions ? <div className="topbar-primary-slot">{actions}</div> : null}

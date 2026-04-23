@@ -7,7 +7,7 @@ export function SiteStructuredData() {
     "@graph": [
       {
         "@type": "Organization",
-        "@id": `${absoluteUrl()}/#organization`,
+        "@id": `${absoluteUrl()}#organization`,
         name: APP_NAME,
         url: absoluteUrl(),
         logo: absoluteUrl("/icon-512x512.png"),
@@ -19,18 +19,18 @@ export function SiteStructuredData() {
       },
       {
         "@type": "WebSite",
-        "@id": `${absoluteUrl()}/#website`,
+        "@id": `${absoluteUrl()}#website`,
         name: APP_NAME,
         url: absoluteUrl(),
         inLanguage: "ru-RU",
         description: SITE_DESCRIPTION,
         publisher: {
-          "@id": `${absoluteUrl()}/#organization`,
+          "@id": `${absoluteUrl()}#organization`,
         },
       },
       {
         "@type": "WebApplication",
-        "@id": `${absoluteUrl()}/#webapp`,
+        "@id": `${absoluteUrl()}#webapp`,
         name: APP_NAME,
         url: absoluteUrl(),
         inLanguage: "ru-RU",

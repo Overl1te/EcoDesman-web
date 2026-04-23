@@ -29,30 +29,24 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: APP_NAME,
   title: {
-    default: `${APP_NAME} — экологическая карта и сообщество`,
+    default: `${APP_NAME} — экологическая карта, события и сообщество`,
     template: `%s | ${APP_NAME}`,
   },
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
-  alternates: {
-    canonical: "/",
-    languages: {
-      "ru-RU": "/",
-    },
-  },
   verification: searchEngineVerification(),
   openGraph: {
     type: "website",
     locale: "ru_RU",
     url: "/",
     siteName: APP_NAME,
-    title: `${APP_NAME} — экологическая карта и городское сообщество`,
+    title: `${APP_NAME} — экологическая карта, события и сообщество`,
     description: SITE_DESCRIPTION,
     images: [OPEN_GRAPH_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${APP_NAME} — экологическая карта и городское сообщество`,
+    title: `${APP_NAME} — экологическая карта, события и сообщество`,
     description: SITE_DESCRIPTION,
     images: [OPEN_GRAPH_IMAGE.url],
   },

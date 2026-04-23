@@ -17,7 +17,7 @@ const PRIVATE_ROUTES = [
   "/auth",
   "/favorites",
   "/notifications",
-  "/profile$",
+  "/profile",
   "/settings",
   "/support",
   "/posts/new",

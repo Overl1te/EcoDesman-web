@@ -9,7 +9,7 @@ import {
   LifeBuoy,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { LoadingBlock } from "@/components/ui/loading-block";
@@ -40,7 +40,13 @@ function BulletList({ bullets }: { bullets?: string[] }) {
   );
 }
 
-export function HelpCenterPage() {
+export function HelpCenterPage({
+  intro,
+  afterContent,
+}: {
+  intro?: ReactNode;
+  afterContent?: ReactNode;
+}) {
   const [content, setContent] = useState<HelpCenterResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,25 +76,30 @@ export function HelpCenterPage() {
 
   if (!content && !error) {
     return (
-      <AppShell title="Справка">
+      <AppShell title="Справка" titleTag="p">
+        {intro}
         <LoadingBlock />
+        {afterContent}
       </AppShell>
     );
   }
 
   if (!content) {
     return (
-      <AppShell title="Справка">
+      <AppShell title="Справка" titleTag="p">
+        {intro}
         <section className="panel">
           <h2>Не удалось загрузить справку</h2>
           <p>{error ?? "Попробуйте обновить страницу позже."}</p>
         </section>
+        {afterContent}
       </AppShell>
     );
   }
 
   return (
-    <AppShell title="Справка">
+    <AppShell title="Справка" titleTag="p">
+      {intro}
       <section className="help-page">
         <div className="help-hero">
           <div className="help-hero-copy">
@@ -326,6 +337,7 @@ export function HelpCenterPage() {
           </div>
         </section>
       </section>
+      {afterContent}
     </AppShell>
   );
 }

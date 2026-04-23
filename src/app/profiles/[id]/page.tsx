@@ -1,22 +1,61 @@
 import type { Metadata } from "next";
 
 import { ProfilePage } from "@/components/profile/profile-page";
+import { getServerPublicProfile } from "@/lib/server-api";
 import { buildPageMetadata } from "@/lib/seo";
 
 type PublicProfileRouteProps = {
   params: Promise<{ id: string }>;
 };
 
+function joinMetaSegments(values: Array<string | undefined>): string {
+  return values
+    .filter(Boolean)
+    .map((value) => value!.trim().replace(/[. ]+$/g, ""))
+    .join(". ");
+}
+
+function buildExcerpt(value: string, limit = 190): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, limit - 1).trimEnd()}…`;
+}
+
 export async function generateMetadata({
   params,
 }: PublicProfileRouteProps): Promise<Metadata> {
   const { id } = await params;
+  const path = `/profiles/${id}`;
+  const profile = await getServerPublicProfile(Number(id));
+
+  if (!profile) {
+    return buildPageMetadata({
+      title: "Профиль участника ЭкоВыхухоль",
+      description:
+        "Публичный профиль участника ЭкоВыхухоль с публикациями, активностью и вкладом в экологическое сообщество.",
+      path,
+    });
+  }
+
+  const title = `${profile.name || profile.username} — профиль участника ЭкоВыхухоль`;
+  const description =
+    buildExcerpt(
+      joinMetaSegments([
+        profile.status_text || undefined,
+        profile.bio || undefined,
+        profile.city ? `Город: ${profile.city}` : undefined,
+        `Публикаций: ${profile.stats.posts_count}`,
+      ]),
+    ) ||
+    "Публичный профиль участника ЭкоВыхухоль с активностью и публикациями сообщества.";
 
   return buildPageMetadata({
-    title: "Профиль участника",
-    description:
-      "Публичный профиль участника ЭкоВыхухоль с публикациями, активностью и вкладом в экологическое сообщество.",
-    path: `/profiles/${id}`,
+    title,
+    description,
+    path,
   });
 }
 

@@ -28,6 +28,7 @@ type FeedPageContentProps = {
   emptyStateTitle: string;
   emptyStateDescription: string;
   intro?: ReactNode;
+  afterContent?: ReactNode;
   eventsOnly?: boolean;
   kind?: "event";
   favoritesOnly?: boolean;
@@ -35,6 +36,7 @@ type FeedPageContentProps = {
   authReturnTo?: string;
   authTitle?: string;
   authDescription?: string;
+  titleTag?: "h1" | "p";
 };
 
 export function FeedPageContent({
@@ -43,6 +45,7 @@ export function FeedPageContent({
   emptyStateTitle,
   emptyStateDescription,
   intro,
+  afterContent,
   eventsOnly = false,
   kind,
   favoritesOnly = false,
@@ -50,10 +53,12 @@ export function FeedPageContent({
   authReturnTo = "/",
   authTitle = "Нужен вход",
   authDescription = "",
+  titleTag = "h1",
 }: FeedPageContentProps) {
   return (
     <AppShell
       title={title}
+      titleTag={titleTag}
       actions={<TopbarSearch placeholder="Поиск публикаций и авторов" />}
       contentClassName="page-content-feed"
     >
@@ -78,6 +83,7 @@ export function FeedPageContent({
           />
         </Suspense>
       </div>
+      {afterContent}
     </AppShell>
   );
 }

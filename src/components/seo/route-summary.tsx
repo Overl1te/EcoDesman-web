@@ -3,6 +3,7 @@ import Link from "next/link";
 type RouteSummaryLink = {
   href: string;
   label: string;
+  description?: string;
 };
 
 export function RouteSummary({
@@ -11,19 +12,30 @@ export function RouteSummary({
   description,
   highlights,
   links,
+  headingLevel = 2,
+  paragraphs = [],
 }: {
   eyebrow: string;
   title: string;
   description: string;
   highlights: string[];
   links: RouteSummaryLink[];
+  headingLevel?: 1 | 2;
+  paragraphs?: string[];
 }) {
+  const HeadingTag = headingLevel === 1 ? "h1" : "h2";
+
   return (
     <section className="route-summary" aria-label={title}>
       <div className="route-summary-copy">
         <p className="eyebrow">{eyebrow}</p>
-        <h2>{title}</h2>
-        <p>{description}</p>
+        <HeadingTag>{title}</HeadingTag>
+        <div className="route-summary-copy-body">
+          <p>{description}</p>
+          {paragraphs.map((paragraph, index) => (
+            <p key={`${paragraph}-${index}`}>{paragraph}</p>
+          ))}
+        </div>
       </div>
 
       <ul className="route-summary-highlights">
@@ -35,7 +47,8 @@ export function RouteSummary({
       <nav className="route-summary-links" aria-label="Основные разделы">
         {links.map((link) => (
           <Link key={link.href} href={link.href} className="route-summary-link">
-            {link.label}
+            <span>{link.label}</span>
+            {link.description ? <small>{link.description}</small> : null}
           </Link>
         ))}
       </nav>

@@ -23,7 +23,13 @@ import type { CalendarEventEntry } from "@/lib/types";
 
 const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-export function EventsFeedPage({ intro }: { intro?: ReactNode }) {
+export function EventsFeedPage({
+  intro,
+  afterContent,
+}: {
+  intro?: ReactNode;
+  afterContent?: ReactNode;
+}) {
   const router = useRouter();
   const { isAuthenticated, openAuthModal } = useAuth();
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
@@ -187,6 +193,7 @@ export function EventsFeedPage({ intro }: { intro?: ReactNode }) {
   return (
     <AppShell
       title="Мероприятия"
+      titleTag="p"
       contentClassName="page-content-events"
       actions={
         <div className="events-topbar-actions">
@@ -382,6 +389,7 @@ export function EventsFeedPage({ intro }: { intro?: ReactNode }) {
           </aside>
         </section>
       ) : null}
+      {afterContent}
     </AppShell>
   );
 }

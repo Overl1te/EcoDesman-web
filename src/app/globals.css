@@ -94,6 +94,39 @@
   gap: 12px;
 }
 
+.help-hero-spotlight {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, #2563eb 18%, var(--border));
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--card) 86%, rgba(37, 99, 235, 0.1));
+}
+
+.help-hero-spotlight-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.help-hero-spotlight strong,
+.help-hero-spotlight p {
+  margin: 0;
+}
+
+.help-hero-spotlight p {
+  margin-top: 6px;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
 .help-hero-facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -587,7 +620,7 @@ img {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 284px minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -596,7 +629,7 @@ img {
   top: 0;
   align-self: start;
   min-height: 100vh;
-  padding: 20px 16px 24px;
+  padding: 16px 12px 20px;
   background: var(--nav-surface);
   border-right: 1px solid var(--border);
 }
@@ -696,9 +729,9 @@ img {
 .nav-link,
 .mobile-nav-link {
   gap: 12px;
-  min-height: 52px;
-  padding: 0 14px;
-  border-radius: 18px;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 14px;
   color: var(--text-soft);
   font-weight: 700;
 }
@@ -744,8 +777,8 @@ img {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: 40px;
+  padding: 0 12px;
   border-radius: 16px;
   border: 1px solid transparent;
   background: transparent;
@@ -1057,7 +1090,7 @@ img {
 }
 
 .filters-toolbar-grid-admin-map {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 160px);
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
 }
 
 .filters-toolbar-grid-admin-map .filter-submit-wrap {
@@ -1102,6 +1135,93 @@ img {
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface);
+}
+
+.marker-visibility-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--map-panel-border, var(--border)) 88%, transparent);
+  border-radius: 22px;
+  background: var(--map-detail-card, var(--surface));
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.marker-visibility-toggle.is-public {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: color-mix(in srgb, var(--map-detail-card, var(--surface)) 86%, rgba(37, 99, 235, 0.14));
+}
+
+.marker-visibility-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.marker-visibility-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.marker-visibility-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.marker-visibility-main strong,
+.marker-visibility-description {
+  overflow-wrap: anywhere;
+}
+
+.marker-visibility-description {
+  display: block;
+  color: var(--map-pill-text, var(--text-soft));
+  line-height: 1.4;
+  font-size: 0.93rem;
+}
+
+.marker-visibility-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--map-pill-text, var(--text-soft)) 24%, transparent);
+}
+
+.marker-visibility-switch span {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.marker-visibility-toggle.is-public .marker-visibility-switch {
+  background: #2563eb;
+}
+
+.marker-visibility-toggle.is-public .marker-visibility-switch span {
+  transform: translateX(20px);
 }
 
 .feed-column {
@@ -1424,14 +1544,34 @@ img {
 }
 
 .admin-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface-soft);
 }
 
 .admin-tab-button {
   border: 0;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-tab-button.chip {
+  min-height: 38px;
+  padding-inline: 12px;
+  border: 1px solid transparent;
+  color: var(--text-soft);
+  background: transparent;
+}
+
+.admin-tab-button.chip.is-active {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 .admin-stack {
@@ -1510,11 +1650,78 @@ img {
   color: var(--danger);
 }
 
+.admin-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+}
+
+.admin-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border));
+}
+
+.admin-stat-card-user-markers .admin-stat-icon {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.admin-stat-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.admin-stat-copy strong {
+  color: var(--text);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.admin-stat-copy span {
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.admin-stat-copy small {
+  color: var(--text-soft);
+  line-height: 1.45;
+  font-size: 0.84rem;
+}
+
 .admin-map-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(420px, 1.05fr);
+  gap: 14px;
   align-items: start;
+}
+
+.admin-map-editor-column {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-map-list-panel,
+.admin-map-point-editor,
+.admin-map-category-editor-panel {
+  gap: 16px;
+}
+
+.admin-map-filters {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-soft));
 }
 
 .admin-point-list {
@@ -1523,13 +1730,43 @@ img {
   gap: 12px;
 }
 
+.admin-point-row {
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.admin-point-row .map-category-row {
+  margin-top: 8px;
+}
+
 .admin-category-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
+.admin-category-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.admin-category-actions .button {
+  min-height: 34px;
+  padding-inline: 12px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+}
+
+.admin-category-empty {
+  margin: 0;
+}
+
 .admin-category-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   background: var(--surface);
 }
@@ -1539,10 +1776,113 @@ img {
   background: color-mix(in srgb, var(--surface) 88%, var(--primary-soft));
 }
 
+.admin-category-check {
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  color: var(--primary);
+}
+
+.admin-color-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-color-picker {
+  width: 56px;
+  min-width: 56px;
+  min-height: 44px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+}
+
 .admin-subsection-row {
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
+}
+
+.admin-category-editor {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.admin-category-list {
+  display: grid;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.admin-category-row {
+  padding: 14px;
+}
+
+.admin-category-form {
+  display: grid;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.admin-user-marker-row {
+  cursor: default;
+  background: var(--surface);
+  border-color: color-mix(in srgb, #2563eb 10%, var(--border));
+}
+
+.admin-marker-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.admin-marker-thumb {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, #2563eb 18%, var(--border));
+  background: color-mix(in srgb, var(--card) 84%, rgba(37, 99, 235, 0.08));
+  color: #2563eb;
+}
+
+.admin-marker-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-marker-video,
+.admin-marker-thumb.is-empty {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.admin-marker-body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-marker-metrics .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .profile-top {
@@ -3399,6 +3739,16 @@ img {
     align-items: flex-start;
   }
 
+  .admin-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .admin-tab-button.chip {
+    justify-content: center;
+  }
+
   .page-content-map {
     height: calc(100svh - 110px);
   }
@@ -3610,11 +3960,21 @@ img {
 
   .map-toolbar-actions {
     gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .map-toolbar-mode {
     min-width: 58px;
     padding-inline: 12px;
+  }
+
+  .marker-visibility-head {
+    flex-wrap: wrap;
+  }
+
+  .marker-visibility-switch {
+    margin-left: 54px;
   }
 
   .map-detail-overlay {
@@ -3626,6 +3986,35 @@ img {
   .admin-user-controls {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .admin-marker-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-marker-thumb {
+    width: 100%;
+    aspect-ratio: 2.2;
+  }
+
+  .admin-category-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-category-list {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .admin-color-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-color-picker {
+    width: 100%;
+    min-width: 0;
   }
 
   .map-review-upload-header {

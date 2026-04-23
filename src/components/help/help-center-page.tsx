@@ -109,6 +109,19 @@ export function HelpCenterPage() {
               </a>
             </div>
 
+            <div className="help-hero-spotlight">
+              <span className="help-hero-spotlight-icon">
+                <ShieldCheck className="nav-icon" />
+              </span>
+              <div>
+                <strong>Справка для пользователей и модераторов</strong>
+                <p>
+                  Правила, документы и быстрые переходы собраны рядом, чтобы не
+                  искать нужный раздел по всему сервису.
+                </p>
+              </div>
+            </div>
+
             <dl className="help-hero-facts">
               <div>
                 <dt>Документов</dt>

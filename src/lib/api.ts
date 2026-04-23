@@ -2,6 +2,7 @@
 
 import { API_BASE_URL } from "@/lib/config";
 import type {
+  AdminMapCategoryWritePayload,
   AdminMapPoint,
   AdminMapPointWritePayload,
   AdminOverview,
@@ -610,6 +611,34 @@ export async function createUserMapMarkerComment(
 
 export async function listAdminMapCategories(): Promise<MapPointCategory[]> {
   return request<MapPointCategory[]>("/admin/map/categories", { auth: true });
+}
+
+export async function createAdminMapCategory(
+  payload: AdminMapCategoryWritePayload,
+): Promise<MapPointCategory> {
+  return request<MapPointCategory>("/admin/map/categories", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminMapCategory(
+  categoryId: number,
+  payload: Partial<AdminMapCategoryWritePayload>,
+): Promise<MapPointCategory> {
+  return request<MapPointCategory>(`/admin/map/categories/${categoryId}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAdminMapCategory(categoryId: number): Promise<void> {
+  await request(`/admin/map/categories/${categoryId}`, {
+    method: "DELETE",
+    auth: true,
+  });
 }
 
 export async function listAdminMapPoints(filters: {

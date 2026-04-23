@@ -46,6 +46,7 @@ import { readMapOverviewCache, writeMapOverviewCache } from "@/lib/map-cache";
 import {
   getCategoryPriority,
   getMapPointAppearance,
+  getMapPointAppearanceForPoint,
   getPrimaryMapCategory,
 } from "@/lib/map-point-style";
 import { getMapStyle } from "@/lib/map-style";
@@ -63,11 +64,16 @@ const pointLayerId = "eco-map-points";
 const userMarkerSourceId = "eco-user-map-markers";
 const userMarkerHaloLayerId = "eco-user-map-markers-halo";
 const userMarkerLayerId = "eco-user-map-markers";
-const userMarkerColor = "#C75D3A";
-const userMarkerHaloColor = "rgba(199, 93, 58, 0.22)";
-const userMarkerStrokeColor = "#F4DDD6";
-const userMarkerSelectedColor = "#D96B47";
-const userMarkerSelectedStrokeColor = "#FFF5F1";
+const userMarkerDraftSourceId = "eco-user-map-marker-draft";
+const userMarkerDraftHaloLayerId = "eco-user-map-marker-draft-halo";
+const userMarkerDraftLayerId = "eco-user-map-marker-draft";
+const userMarkerColor = "#2563EB";
+const userMarkerHaloColor = "rgba(37, 99, 235, 0.22)";
+const userMarkerStrokeColor = "#DCEBFF";
+const userMarkerSelectedColor = "#1D4ED8";
+const userMarkerSelectedStrokeColor = "#F8FBFF";
+const userMarkerDraftColor = "#0EA5E9";
+const userMarkerDraftHaloColor = "rgba(14, 165, 233, 0.24)";
 const userMarkersVisibilityStorageKey = "eco-map-show-user-markers";
 const nizhnyCenter: [number, number] = [43.974881, 56.315048];
 const nizhnyZoom = 11.8;
@@ -92,6 +98,10 @@ type UserMarkerFeatureProperties = {
   isSelected: boolean;
 };
 
+type DraftMarkerFeatureProperties = {
+  title: string;
+};
+
 function buildErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -100,7 +110,10 @@ function buildPointsGeoJson(points: MapPointSummary[], selectedId?: number | nul
   return {
     type: "FeatureCollection",
     features: points.map((point) => {
-      const appearance = getMapPointAppearance(getPrimaryMapCategory(point));
+      const appearance = getMapPointAppearanceForPoint(
+        point.marker_color,
+        getPrimaryMapCategory(point),
+      );
       return {
         type: "Feature",
         geometry: {
@@ -140,6 +153,28 @@ function buildUserMarkersGeoJson(
         isSelected: marker.id === selectedId,
       },
     })),
+  };
+}
+
+function buildUserMarkerDraftGeoJson(
+  coordinates: [number, number] | null,
+): GeoJSON.FeatureCollection<GeoJSON.Point, DraftMarkerFeatureProperties> {
+  return {
+    type: "FeatureCollection",
+    features: coordinates
+      ? [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates,
+            },
+            properties: {
+              title: "Новая метка",
+            },
+          },
+        ]
+      : [],
   };
 }
 
@@ -191,6 +226,7 @@ export function MapPage() {
   const selectedIdRef = useRef<number | null>(null);
   const selectedUserMarkerIdRef = useRef<number | null>(null);
   const markerAddModeRef = useRef(false);
+  const markerDraftCoordsRef = useRef<[number, number] | null>(null);
 
   const resetReviewForm = useCallback(() => {
     setReviewFormOpen(false);
@@ -312,6 +348,10 @@ export function MapPage() {
   useEffect(() => {
     markerAddModeRef.current = markerAddMode;
   }, [markerAddMode]);
+
+  useEffect(() => {
+    markerDraftCoordsRef.current = markerDraftCoords;
+  }, [markerDraftCoords]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -543,8 +583,8 @@ export function MapPage() {
           style: mapStyle,
           center: nizhnyCenter,
           zoom: nizhnyZoom,
-          pitch: threeDimensionalPitch,
-          bearing: threeDimensionalBearing,
+          pitch: twoDimensionalPitch,
+          bearing: 0,
           maxPitch: 60,
           attributionControl: false,
           maxBounds: bounds,
@@ -577,6 +617,10 @@ export function MapPage() {
               visibleUserMarkersRef.current,
               selectedUserMarkerIdRef.current,
             ),
+          });
+          map.addSource(userMarkerDraftSourceId, {
+            type: "geojson",
+            data: buildUserMarkerDraftGeoJson(markerDraftCoordsRef.current),
           });
 
           map.addLayer({
@@ -671,6 +715,28 @@ export function MapPage() {
               ],
             },
           });
+          map.addLayer({
+            id: userMarkerDraftHaloLayerId,
+            type: "circle",
+            source: userMarkerDraftSourceId,
+            paint: {
+              "circle-radius": 22,
+              "circle-color": userMarkerDraftHaloColor,
+              "circle-blur": 0.18,
+            },
+          });
+
+          map.addLayer({
+            id: userMarkerDraftLayerId,
+            type: "circle",
+            source: userMarkerDraftSourceId,
+            paint: {
+              "circle-radius": 10.5,
+              "circle-color": userMarkerDraftColor,
+              "circle-stroke-width": 3,
+              "circle-stroke-color": "#FFFFFF",
+            },
+          });
 
           map.on("mouseenter", pointLayerId, () => {
             map.getCanvas().style.cursor = "pointer";
@@ -712,8 +778,16 @@ export function MapPage() {
             }
             setSelected(null);
             setSelectedUserMarker(null);
-            setMarkerDraftCoords([event.lngLat.lng, event.lngLat.lat]);
+            const coordinates: [number, number] = [event.lngLat.lng, event.lngLat.lat];
+            setMarkerDraftCoords(coordinates);
             setMarkerError(null);
+            map.easeTo({
+              center: coordinates,
+              zoom: Math.max(map.getZoom(), 14.2),
+              pitch: twoDimensionalPitch,
+              bearing: 0,
+              duration: 520,
+            });
           });
 
           setMapReady(true);
@@ -770,6 +844,16 @@ export function MapPage() {
     const source = map.getSource(userMarkerSourceId) as GeoJSONSource | undefined;
     source?.setData(buildUserMarkersGeoJson(visibleUserMarkers, selectedUserMarker?.id));
   }, [mapReady, selectedUserMarker?.id, visibleUserMarkers]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map) {
+      return;
+    }
+
+    const source = map.getSource(userMarkerDraftSourceId) as GeoJSONSource | undefined;
+    source?.setData(buildUserMarkerDraftGeoJson(markerDraftCoords));
+  }, [mapReady, markerDraftCoords]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -939,7 +1023,9 @@ export function MapPage() {
             <span className="map-hint-dot" />
             <span>
               {markerAddMode
-                ? "Нажмите на карту, чтобы поставить пользовательскую метку"
+                ? markerDraftCoords
+                  ? "Место выбрано, заполните карточку"
+                  : "Нажмите на карту, чтобы поставить пользовательскую метку"
                 : "Нажмите на точку, чтобы открыть подробности"}
             </span>
           </div>
@@ -1376,13 +1462,35 @@ export function MapPage() {
                     placeholder="Опишите место, ориентиры, что стоит посмотреть"
                   />
                 </label>
-                <label className="toggle-checkbox">
+                <label
+                  className={`marker-visibility-toggle ${
+                    markerIsPublic ? "is-public" : ""
+                  }`}
+                >
                   <input
                     type="checkbox"
+                    className="visually-hidden"
                     checked={markerIsPublic}
                     onChange={(event) => setMarkerIsPublic(event.target.checked)}
                   />
-                  <span>Показывать метку другим пользователям</span>
+                  <span className="marker-visibility-head">
+                    <span className="marker-visibility-icon" aria-hidden="true">
+                      {markerIsPublic ? <Eye className="nav-icon" /> : <EyeOff className="nav-icon" />}
+                    </span>
+                    <span className="marker-visibility-main">
+                      <strong>
+                        {markerIsPublic ? "Видно всем на карте" : "Только для меня"}
+                      </strong>
+                      <span className="marker-visibility-description">
+                        {markerIsPublic
+                          ? "Другие пользователи смогут открыть метку и оставить комментарий."
+                          : "Метка сохранится, но не появится у других пользователей."}
+                      </span>
+                    </span>
+                    <span className="marker-visibility-switch" aria-hidden="true">
+                      <span />
+                    </span>
+                  </span>
                 </label>
 
                 <ImageDropzone

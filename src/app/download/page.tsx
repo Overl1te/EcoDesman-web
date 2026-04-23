@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
+
 import { AppDownloadLinks } from "@/components/layout/app-download-links";
 import { AppShell } from "@/components/layout/app-shell";
+
+export const metadata: Metadata = {
+  title: "Download App",
+  description:
+    "Install EcoDesman mobile app for a better map and notification experience.",
+};
 
 export default function DownloadPage() {
   return (

@@ -129,6 +129,7 @@ export interface MapPointSummary {
   short_description: string;
   latitude: number;
   longitude: number;
+  marker_color: string;
   categories: MapPointCategory[];
   primary_category: MapPointCategory | null;
   cover_image_url: string;
@@ -411,6 +412,7 @@ export interface AdminMapPoint {
   working_hours: string;
   latitude: number;
   longitude: number;
+  marker_color: string;
   categories: MapPointCategory[];
   primary_category: MapPointCategory | null;
   images: MapPointImage[];
@@ -505,6 +507,13 @@ export interface EventCalendarResponse {
   events: CalendarEventEntry[];
 }
 
+export interface AdminMapCategoryWritePayload {
+  slug: string;
+  title: string;
+  sort_order: number;
+  color: string;
+}
+
 export interface AdminMapPointWritePayload {
   slug: string;
   title: string;
@@ -514,6 +523,7 @@ export interface AdminMapPointWritePayload {
   working_hours: string;
   latitude: number;
   longitude: number;
+  marker_color: string;
   is_active: boolean;
   sort_order: number;
   category_ids: number[];

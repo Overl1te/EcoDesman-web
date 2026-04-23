@@ -9,6 +9,7 @@ type MapPointAppearance = {
 };
 
 const defaultAppearance = buildAppearance("#56616F");
+const hexColorPattern = /^#[0-9A-F]{6}$/i;
 
 function buildAppearance(color: string): MapPointAppearance {
   return {
@@ -77,4 +78,28 @@ export function getPrimaryMapCategory(
 
 export function getMapPointAppearance(category?: MapPointCategory | null) {
   return category?.color ? buildAppearance(category.color) : defaultAppearance;
+}
+
+export function resolvePointMarkerColor(
+  markerColor?: string | null,
+  category?: MapPointCategory | null,
+) {
+  const pointColor = markerColor?.trim() ?? "";
+  if (hexColorPattern.test(pointColor)) {
+    return pointColor.toUpperCase();
+  }
+
+  const categoryColor = category?.color?.trim() ?? "";
+  if (hexColorPattern.test(categoryColor)) {
+    return categoryColor.toUpperCase();
+  }
+
+  return defaultAppearance.color;
+}
+
+export function getMapPointAppearanceForPoint(
+  markerColor?: string | null,
+  category?: MapPointCategory | null,
+) {
+  return buildAppearance(resolvePointMarkerColor(markerColor, category));
 }

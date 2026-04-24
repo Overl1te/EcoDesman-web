@@ -269,72 +269,107 @@ export interface SupportKnowledgeResponse {
   suggested_prompts: string[];
 }
 
-export interface HelpCenterOverviewCard {
-  title: string;
-  title_en?: string;
-  body: string;
-  body_en?: string;
-}
-
 export interface HelpCenterOverview {
   title: string;
-  title_en?: string;
   description: string;
-  description_en?: string;
-  cards: HelpCenterOverviewCard[];
+  lead: string;
 }
 
 export interface HelpCenterServiceBlock {
   title: string;
-  title_en?: string;
   body: string;
-  body_en?: string;
 }
 
 export interface HelpDocumentApproval {
   status: string;
-  status_en?: string;
   revision: string;
-  revision_en?: string;
   effective_date: string;
-  effective_date_en?: string;
   approved_by: string;
-  approved_by_en?: string;
   approved_role: string;
-  approved_role_en?: string;
   approval_basis: string;
-  approval_basis_en?: string;
   contact: string;
-  contact_en?: string;
   note: string;
-  note_en?: string;
 }
 
 export interface HelpDocumentSection {
+  id: string;
   title: string;
-  title_en?: string;
   paragraphs: string[];
-  paragraphs_en?: string[];
   bullets?: string[];
-  bullets_en?: string[];
+}
+
+export interface HelpDocumentGroup {
+  id: string;
+  title: string;
+  document_ids: string[];
+}
+
+export interface HelpDocumentQuickFact {
+  label: string;
+  value: string;
+}
+
+export interface HelpDocumentTocItem {
+  id: string;
+  title: string;
+}
+
+export interface HelpOperatorDetails {
+  name: string;
+  inn: string;
+  ogrn: string;
+  address: string;
+  email: string;
+}
+
+export interface HelpDocumentWithdrawal {
+  title: string;
+  items: string[];
 }
 
 export interface HelpDocument {
   id: string;
+  slug: string;
+  group: string;
   label: string;
-  label_en?: string;
+  title: string;
   summary: string;
-  summary_en?: string;
+  description: string;
+  updated_at: string;
+  status: string;
+  revision: string;
+  operator: string;
   pdf_file_name: string;
   pdf_download_url: string;
   approval: HelpDocumentApproval;
+  quick_facts?: HelpDocumentQuickFact[];
+  table_of_contents?: HelpDocumentTocItem[];
   sections: HelpDocumentSection[];
+  operator_details?: HelpOperatorDetails;
+  withdrawal?: HelpDocumentWithdrawal | null;
+  archive_url?: string;
 }
 
 export interface HelpCenterResponse {
   overview: HelpCenterOverview;
+  document_groups: HelpDocumentGroup[];
   service_blocks: HelpCenterServiceBlock[];
   documents: HelpDocument[];
+  contact_block: {
+    title: string;
+    email: string;
+  };
+}
+
+export interface SocialProvider {
+  id: "vk" | "google" | "yandex";
+  label: string;
+  enabled: boolean;
+  authorization_url: string;
+}
+
+export interface SocialProvidersResponse {
+  providers: SocialProvider[];
 }
 
 export interface SupportParticipant {

@@ -13,6 +13,7 @@ import {
   changePassword,
   fetchMe,
   login as apiLogin,
+  loginWithSocial as apiLoginWithSocial,
   logout as apiLogout,
   register as apiRegister,
   updateProfile as apiUpdateProfile,
@@ -33,6 +34,16 @@ interface AuthContextValue {
   isBootstrapping: boolean;
   authModal: AuthModalState;
   login: (payload: { identifier: string; password: string }) => Promise<void>;
+  loginWithSocial: (payload: {
+    provider: string;
+    code?: string;
+    access_token?: string;
+    redirect_uri?: string;
+    accept_terms?: boolean;
+    accept_privacy_policy?: boolean;
+    accept_personal_data?: boolean;
+    accept_public_personal_data_distribution?: boolean;
+  }) => Promise<void>;
   register: (payload: {
     username: string;
     email: string;
@@ -87,6 +98,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const nextSession = await apiLogin(payload);
     setUser(nextSession.user);
   }, []);
+
+  const loginWithSocial = useCallback(
+    async (payload: {
+      provider: string;
+      code?: string;
+      access_token?: string;
+      redirect_uri?: string;
+      accept_terms?: boolean;
+      accept_privacy_policy?: boolean;
+      accept_personal_data?: boolean;
+      accept_public_personal_data_distribution?: boolean;
+    }) => {
+      const nextSession = await apiLoginWithSocial(payload);
+      setUser(nextSession.user);
+    },
+    [],
+  );
 
   const register = useCallback(
     async (payload: {
@@ -158,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isBootstrapping,
       authModal,
       login,
+      loginWithSocial,
       register,
       logout,
       refreshUser,
@@ -172,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       closeAuthModal,
       isBootstrapping,
       login,
+      loginWithSocial,
       logout,
       openAuthModal,
       refreshUser,

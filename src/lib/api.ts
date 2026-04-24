@@ -12,6 +12,7 @@ import type {
   CurrentUser,
   EventCalendarResponse,
   FeedFilters,
+  HelpDocument,
   HelpCenterResponse,
   MapPointDetail,
   MapPointCategory,
@@ -25,6 +26,7 @@ import type {
   SupportBotReplyResponse,
   SupportKnowledgeResponse,
   SupportReport,
+  SocialProvidersResponse,
   SupportThreadDetail,
   SupportThreadSummary,
   UserSummary,
@@ -373,8 +375,41 @@ export async function getSupportKnowledge(): Promise<SupportKnowledgeResponse> {
   return request<SupportKnowledgeResponse>("/support/knowledge");
 }
 
+export async function getSocialProviders(payload?: {
+  redirect_uri?: string;
+  state?: string;
+}): Promise<SocialProvidersResponse> {
+  const params = new URLSearchParams();
+  if (payload?.redirect_uri) params.set("redirect_uri", payload.redirect_uri);
+  if (payload?.state) params.set("state", payload.state);
+  const url = `/auth/social/providers${params.size ? `?${params.toString()}` : ""}`;
+  return request<SocialProvidersResponse>(url);
+}
+
+export async function loginWithSocial(payload: {
+  provider: string;
+  code?: string;
+  access_token?: string;
+  redirect_uri?: string;
+  email?: string;
+  accept_terms?: boolean;
+  accept_privacy_policy?: boolean;
+  accept_personal_data?: boolean;
+  accept_public_personal_data_distribution?: boolean;
+}): Promise<AuthSession> {
+  const { provider, ...body } = payload;
+  return request<AuthSession>(`/auth/social/${provider}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function getHelpCenterContent(): Promise<HelpCenterResponse> {
   return request<HelpCenterResponse>("/support/help-center");
+}
+
+export async function getHelpDocument(slug: string): Promise<HelpDocument> {
+  return request<HelpDocument>(`/support/help-center/${slug}`);
 }
 
 export async function askSupportBot(query: string): Promise<SupportBotReplyResponse> {

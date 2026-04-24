@@ -2,15 +2,12 @@ import type { Metadata } from "next";
 
 import { HelpCenterPage } from "@/components/help/help-center-page";
 import { StructuredDataScript } from "@/components/seo/structured-data-script";
-import {
-  buildPageMetadata,
-  buildWebPageStructuredData,
-} from "@/lib/seo";
+import { buildPageMetadata, buildWebPageStructuredData } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Справка ЭкоВыхухоль — документы, инструкции и ответы",
+  title: "Справка ЭкоВыхухоль — правовые документы сервиса",
   description:
-    "Справка ЭкоВыхухоль содержит документы проекта, инструкции по сервису, ответы на частые вопросы и ссылки на репозитории web, server и mobile. Здесь собрана публичная информация по платформе и правилам.",
+    "Справочные и правовые документы сервиса ЭкоВыхухоль: персональные данные, условия использования, правила сервиса, контакты и реквизиты оператора.",
   path: "/help",
 });
 
@@ -23,12 +20,12 @@ export default function HelpPage() {
             path: "/help",
             name: "Справка ЭкоВыхухоль",
             description:
-              "Публичная справка по сервису: документы, инструкции, ответы на вопросы и ссылки на репозитории проекта.",
+              "Библиотека справочных и правовых документов сервиса ЭкоВыхухоль.",
             about: [
-              "документы проекта",
-              "инструкции по сервису",
-              "ответы на вопросы",
-              "репозитории EcoDesman",
+              "персональные данные",
+              "условия сервиса",
+              "правовые документы",
+              "контакты оператора",
             ],
           }),
         ]}

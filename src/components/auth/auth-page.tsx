@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Circle, X } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
-import { requestPasswordReset } from "@/lib/api";
+import { getSocialProviders, requestPasswordReset } from "@/lib/api";
 import { APP_NAME } from "@/lib/config";
 
 type Mode = "login" | "register";
@@ -146,6 +146,44 @@ export function AuthDialog() {
     }
   };
 
+  const handleSocialAuth = async (provider: "vk" | "google" | "yandex") => {
+    if (mode === "register" && (!acceptTerms || !acceptPrivacyPolicy || !acceptPersonalData)) {
+      setError(
+        "Для регистрации через соцсеть примите пользовательское соглашение, политику конфиденциальности и согласие на обработку персональных данных.",
+      );
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+
+    try {
+      const redirectUri = `${window.location.origin}/auth/social/${provider}/callback`;
+      const state = [
+        acceptTerms,
+        acceptPrivacyPolicy,
+        acceptPersonalData,
+        acceptPublicPersonalData,
+      ]
+        .map((value) => (value ? "1" : "0"))
+        .join("");
+      const response = await getSocialProviders({ redirect_uri: redirectUri, state });
+      const socialProvider = response.providers.find((item) => item.id === provider);
+
+      if (!socialProvider?.enabled || !socialProvider.authorization_url) {
+        setError("Этот способ входа пока не настроен. Попробуйте вход по почте или логину.");
+        return;
+      }
+
+      window.location.assign(socialProvider.authorization_url);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Не удалось начать вход через соцсеть");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="auth-modal-root" role="presentation">
       <button
@@ -194,6 +232,36 @@ export function AuthDialog() {
             onClick={() => setMode("register")}
           >
             Регистрация
+          </button>
+        </div>
+
+        <div className="auth-social-block" aria-label="Вход через внешние сервисы">
+          <button
+            type="button"
+            className="auth-social-button auth-social-vk"
+            disabled={loading}
+            onClick={() => void handleSocialAuth("vk")}
+          >
+            <span aria-hidden="true">VK</span>
+            <strong>ВКонтакте</strong>
+          </button>
+          <button
+            type="button"
+            className="auth-social-button auth-social-google"
+            disabled={loading}
+            onClick={() => void handleSocialAuth("google")}
+          >
+            <span aria-hidden="true">G</span>
+            <strong>Google</strong>
+          </button>
+          <button
+            type="button"
+            className="auth-social-button auth-social-yandex"
+            disabled={loading}
+            onClick={() => void handleSocialAuth("yandex")}
+          >
+            <span aria-hidden="true">Я</span>
+            <strong>Яндекс</strong>
           </button>
         </div>
 
@@ -289,7 +357,7 @@ export function AuthDialog() {
                     onChange={(event) => setAcceptTerms(event.target.checked)}
                   />
                   <span>
-                    Принимаю <LegalLink href="/help#terms">пользовательское соглашение</LegalLink>.
+                    Принимаю <LegalLink href="/help/terms">пользовательское соглашение</LegalLink>.
                   </span>
                 </label>
 
@@ -301,7 +369,7 @@ export function AuthDialog() {
                   />
                   <span>
                     Подтверждаю ознакомление с{" "}
-                    <LegalLink href="/help#privacy-policy">
+                    <LegalLink href="/help/privacy-policy">
                       политикой обработки персональных данных
                     </LegalLink>
                     .
@@ -315,7 +383,7 @@ export function AuthDialog() {
                     onChange={(event) => setAcceptPersonalData(event.target.checked)}
                   />
                   <span>
-                    Даю <LegalLink href="/help#personal-data-consent">согласие на обработку персональных данных</LegalLink>.
+                    Даю <LegalLink href="/help/personal-data-consent">согласие на обработку персональных данных</LegalLink>.
                   </span>
                 </label>
 
@@ -327,7 +395,7 @@ export function AuthDialog() {
                   />
                   <span>
                     При необходимости разрешаю публичное размещение данных по{" "}
-                    <LegalLink href="/help#distribution-consent">
+                    <LegalLink href="/help/distribution-consent">
                       согласию на распространение персональных данных
                     </LegalLink>
                     .

@@ -65,6 +65,8 @@ export interface PostListItem {
   body: string;
   preview_text: string;
   kind: "news" | "event" | "story";
+  created_at: string;
+  updated_at: string;
   published_at: string;
   is_published: boolean;
   author: PostAuthor;
@@ -494,6 +496,8 @@ export interface CalendarEventEntry {
   title: string;
   body: string;
   kind: "news" | "event" | "story";
+  created_at: string;
+  updated_at: string;
   author: PostAuthor;
   event_date: string | null;
   event_starts_at: string | null;

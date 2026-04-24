@@ -8,16 +8,16 @@ import { buildPostMetadata, buildPostStructuredData } from "@/lib/post-seo";
 import { getServerPostBySlug } from "@/lib/server-api";
 import { buildPageMetadata } from "@/lib/seo";
 
-type PostDetailRouteProps = {
+type CanonicalPostRouteProps = {
   params: Promise<{ username: string; postSlug: string }>;
 };
 
 export async function generateMetadata({
   params,
-}: PostDetailRouteProps): Promise<Metadata> {
+}: CanonicalPostRouteProps): Promise<Metadata> {
   const { username, postSlug } = await params;
   const post = await getServerPostBySlug(username, postSlug);
-  const path = post ? buildPostPath(post) : `/${username}/posts/${postSlug}`;
+  const path = post ? buildPostPath(post) : `/posts/${username}/${postSlug}`;
 
   if (!post) {
     return buildPageMetadata({
@@ -31,9 +31,9 @@ export async function generateMetadata({
   return buildPostMetadata(post);
 }
 
-export default async function PostDetailRoutePage({
+export default async function CanonicalPostRoutePage({
   params,
-}: PostDetailRouteProps) {
+}: CanonicalPostRouteProps) {
   const { username, postSlug } = await params;
   const post = await getServerPostBySlug(username, postSlug);
 
@@ -42,7 +42,7 @@ export default async function PostDetailRoutePage({
   }
 
   const canonicalPath = buildPostPath(post);
-  if (canonicalPath !== `/${username}/posts/${postSlug}`) {
+  if (canonicalPath !== `/posts/${username}/${postSlug}`) {
     permanentRedirect(canonicalPath);
   }
 

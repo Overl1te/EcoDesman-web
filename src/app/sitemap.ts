@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const dynamicEntries: MetadataRoute.Sitemap = [
       ...posts.map((post) => ({
         url: buildAbsoluteUrl(buildPostPath(post)),
-        lastModified: post.published_at,
+        lastModified: post.updated_at || post.published_at,
         changeFrequency: "weekly" as const,
         priority: post.kind === "event" ? 0.76 : 0.68,
       })),

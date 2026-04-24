@@ -11,6 +11,10 @@ function normalizePublicSegment(value: string | null | undefined): string {
   return (value || "").trim();
 }
 
+function encodePublicSegment(value: string): string {
+  return encodeURIComponent(value);
+}
+
 export function buildProfilePathFromParts({
   userId,
   username,
@@ -19,7 +23,7 @@ export function buildProfilePathFromParts({
   username?: string | null;
 }): string {
   const publicUsername = normalizePublicSegment(username);
-  return publicUsername ? `/${publicUsername}` : `/profiles/${userId}`;
+  return publicUsername ? `/profiles/${encodePublicSegment(publicUsername)}` : `/profiles/${userId}`;
 }
 
 export function buildProfilePath(user: PublicUserLike): string {
@@ -42,7 +46,7 @@ export function buildPostPathFromParts({
   const publicPostSlug = normalizePublicSegment(postSlug);
 
   if (publicUsername && publicPostSlug) {
-    return `/${publicUsername}/posts/${publicPostSlug}`;
+    return `/posts/${encodePublicSegment(publicUsername)}/${encodePublicSegment(publicPostSlug)}`;
   }
 
   return `/posts/${postId}`;

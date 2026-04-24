@@ -9,6 +9,7 @@ export function SiteStructuredData() {
         "@type": "Organization",
         "@id": `${absoluteUrl()}#organization`,
         name: APP_NAME,
+        alternateName: ["Эко Выхухоль", "EcoDesman", "эковыхухоль.рф"],
         url: absoluteUrl(),
         logo: absoluteUrl("/icon-512x512.png"),
         sameAs: [
@@ -21,11 +22,17 @@ export function SiteStructuredData() {
         "@type": "WebSite",
         "@id": `${absoluteUrl()}#website`,
         name: APP_NAME,
+        alternateName: ["Эко Выхухоль", "EcoDesman", "эковыхухоль.рф"],
         url: absoluteUrl(),
         inLanguage: "ru-RU",
         description: SITE_DESCRIPTION,
         publisher: {
           "@id": `${absoluteUrl()}#organization`,
+        },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${absoluteUrl()}?search={search_term_string}`,
+          "query-input": "required name=search_term_string",
         },
       },
       {

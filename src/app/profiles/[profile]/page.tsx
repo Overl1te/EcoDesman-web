@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { ProfilePage } from "@/components/profile/profile-page";
 import { buildProfilePath } from "@/lib/paths";
-import { getServerPublicProfileByUsername } from "@/lib/server-api";
+import {
+  getServerPublicProfile,
+  getServerPublicProfileByUsername,
+} from "@/lib/server-api";
 import { buildPageMetadata } from "@/lib/seo";
+import type { CurrentUser } from "@/lib/types";
 
 type PublicProfileRouteProps = {
-  params: Promise<{ username: string }>;
+  params: Promise<{ profile: string }>;
 };
 
 function joinMetaSegments(values: Array<string | undefined>): string {
@@ -25,13 +30,16 @@ function buildExcerpt(value: string, limit = 190): string {
   return `${normalized.slice(0, limit - 1).trimEnd()}…`;
 }
 
-export async function generateMetadata({
-  params,
-}: PublicProfileRouteProps): Promise<Metadata> {
-  const { username } = await params;
-  const profile = await getServerPublicProfileByUsername(username);
-  const path = profile ? buildProfilePath(profile) : `/${username}`;
+async function getProfileByPublicSegment(segment: string): Promise<CurrentUser | null> {
+  const numericId = Number(segment);
+  if (Number.isInteger(numericId) && numericId > 0) {
+    return getServerPublicProfile(numericId);
+  }
 
+  return getServerPublicProfileByUsername(segment);
+}
+
+function buildProfileMetadata(profile: CurrentUser | null, path: string): Metadata {
   if (!profile) {
     return buildPageMetadata({
       title: "Профиль участника ЭкоВыхухоль",
@@ -56,20 +64,33 @@ export async function generateMetadata({
   return buildPageMetadata({
     title,
     description,
-    path,
+    path: buildProfilePath(profile),
   });
+}
+
+export async function generateMetadata({
+  params,
+}: PublicProfileRouteProps): Promise<Metadata> {
+  const { profile: profileSegment } = await params;
+  const profile = await getProfileByPublicSegment(profileSegment);
+  const path = profile ? buildProfilePath(profile) : `/profiles/${profileSegment}`;
+  return buildProfileMetadata(profile, path);
 }
 
 export default async function PublicProfileRoutePage({
   params,
 }: PublicProfileRouteProps) {
-  const { username } = await params;
-  const profile = await getServerPublicProfileByUsername(username);
+  const { profile: profileSegment } = await params;
+  const profile = await getProfileByPublicSegment(profileSegment);
 
   if (!profile) {
     notFound();
   }
 
   const canonicalPath = buildProfilePath(profile);
-  permanentRedirect(canonicalPath);
+  if (canonicalPath !== `/profiles/${profileSegment}`) {
+    permanentRedirect(canonicalPath);
+  }
+
+  return <ProfilePage userId={profile.id} />;
 }

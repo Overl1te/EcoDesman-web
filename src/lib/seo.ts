@@ -54,11 +54,24 @@ type PageMetadataOptions = {
   path?: string;
   index?: boolean;
   keywords?: string[];
+  images?: SeoImage[];
+  openGraphType?: "website" | "article";
+  publishedTime?: string;
+  modifiedTime?: string;
+  authors?: string[];
+  tags?: string[];
 };
 
 export type SeoFaqItem = {
   question: string;
   answer: string;
+};
+
+export type SeoImage = {
+  url: string;
+  width?: number;
+  height?: number;
+  alt?: string;
 };
 
 type StructuredDataThing = {
@@ -89,11 +102,42 @@ export function buildPageMetadata({
   path = "/",
   index = true,
   keywords = SITE_KEYWORDS,
+  images = [OPEN_GRAPH_IMAGE],
+  openGraphType = "website",
+  publishedTime,
+  modifiedTime,
+  authors,
+  tags,
 }: PageMetadataOptions): Metadata {
   const canonical = normalizePath(path);
+  const fullTitle = title.includes(APP_NAME) ? title : `${title} — ${APP_NAME}`;
+  const openGraph: NonNullable<Metadata["openGraph"]> =
+    openGraphType === "article"
+      ? {
+          type: "article",
+          locale: "ru_RU",
+          url: canonical,
+          siteName: APP_NAME,
+          title: fullTitle,
+          description,
+          images,
+          publishedTime,
+          modifiedTime,
+          authors,
+          tags,
+        }
+      : {
+          type: "website",
+          locale: "ru_RU",
+          url: canonical,
+          siteName: APP_NAME,
+          title: fullTitle,
+          description,
+          images,
+        };
 
   return {
-    title,
+    title: fullTitle,
     description,
     keywords,
     alternates: {
@@ -102,20 +146,12 @@ export function buildPageMetadata({
         "ru-RU": canonical,
       },
     },
-    openGraph: {
-      type: "website",
-      locale: "ru_RU",
-      url: canonical,
-      siteName: APP_NAME,
-      title,
-      description,
-      images: [OPEN_GRAPH_IMAGE],
-    },
+    openGraph,
     twitter: {
       card: "summary_large_image",
-      title,
+      title: fullTitle,
       description,
-      images: [OPEN_GRAPH_IMAGE.url],
+      images: images.map((image) => image.url),
     },
     robots: index ? INDEXABLE_ROBOTS : NO_INDEX_ROBOTS,
   };
@@ -125,8 +161,10 @@ export function buildNoIndexMetadata(
   title: string,
   description?: string,
 ): Metadata {
+  const fullTitle = title.includes(APP_NAME) ? title : `${title} — ${APP_NAME}`;
+
   return {
-    title,
+    title: fullTitle,
     ...(description ? { description } : {}),
     robots: NO_INDEX_ROBOTS,
   };
@@ -204,6 +242,20 @@ export function buildFaqStructuredData(path: string, faqs: SeoFaqItem[]) {
         "@type": "Answer",
         text: item.answer,
       },
+    })),
+  };
+}
+
+export function buildBreadcrumbStructuredData(
+  items: Array<{ name: string; path: string }>,
+) {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: absoluteUrl(item.path),
     })),
   };
 }

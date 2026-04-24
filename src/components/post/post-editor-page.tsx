@@ -12,6 +12,8 @@ import { createPost, getPost, updatePost, uploadImages } from "@/lib/api";
 import { buildPostEditPath, buildPostPath } from "@/lib/paths";
 import type { PostDetail, PostWritePayload } from "@/lib/types";
 
+const MAX_POST_BODY_LENGTH = 5000;
+
 const EMPTY_EVENT_FORM = {
   event_date: null,
   event_location: "",
@@ -161,10 +163,14 @@ export function PostEditorPage({ postId }: { postId?: number }) {
                   <span>Текст публикации</span>
                   <textarea
                     value={form.body || ""}
+                    maxLength={MAX_POST_BODY_LENGTH}
                     onChange={(event) =>
                       setForm((current) => ({ ...current, body: event.target.value }))
                     }
                   />
+                  <small className="muted">
+                    {(form.body || "").length} / {MAX_POST_BODY_LENGTH} символов
+                  </small>
                 </label>
 
                 {form.kind === "event" ? (

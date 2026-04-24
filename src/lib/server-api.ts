@@ -7,7 +7,7 @@ import type {
 } from "@/lib/types";
 
 const DEFAULT_REVALIDATE_SECONDS = 1800;
-const MAX_SITEMAP_PAGES = 24;
+const MAX_SITEMAP_PAGES = 50;
 const LOCAL_API_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
 
 function getServerApiBaseUrl(): string {
@@ -189,6 +189,7 @@ export async function listPublicSitemapEntities(): Promise<{
       {
         searchParams: {
           ordering: "recent",
+          page_size: 20,
           page,
         },
         revalidate: 1800,
@@ -205,12 +206,12 @@ export async function listPublicSitemapEntities(): Promise<{
       const currentProfile = profiles.get(item.author.id);
       if (
         !currentProfile ||
-        new Date(item.published_at).getTime() >
+        new Date(item.updated_at || item.published_at).getTime() >
           new Date(currentProfile.lastModified).getTime()
       ) {
         profiles.set(item.author.id, {
           username: item.author.username,
-          lastModified: item.published_at,
+          lastModified: item.updated_at || item.published_at,
         });
       }
     }

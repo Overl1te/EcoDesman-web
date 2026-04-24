@@ -4,7 +4,7 @@ import { PostEditorPage } from "@/components/post/post-editor-page";
 import { buildNoIndexMetadata } from "@/lib/seo";
 
 type EditPostRouteProps = {
-  params: Promise<{ id: string }>;
+  params: Promise<{ username: string }>;
 };
 
 export const metadata: Metadata = buildNoIndexMetadata(
@@ -14,5 +14,5 @@ export const metadata: Metadata = buildNoIndexMetadata(
 
 export default async function EditPostRoutePage({ params }: EditPostRouteProps) {
   const resolvedParams = await params;
-  return <PostEditorPage postId={Number(resolvedParams.id)} />;
+  return <PostEditorPage postId={Number(resolvedParams.username)} />;
 }

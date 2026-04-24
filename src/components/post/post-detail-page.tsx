@@ -60,17 +60,23 @@ function wasEdited(comment: PostComment) {
   return comment.updated_at !== comment.created_at;
 }
 
-export function PostDetailPage({ postId }: { postId: number }) {
+export function PostDetailPage({
+  postId,
+  initialPost = null,
+}: {
+  postId: number;
+  initialPost?: PostDetail | null;
+}) {
   const router = useRouter();
   const { isAuthenticated, openAuthModal } = useAuth();
-  const [post, setPost] = useState<PostDetail | null>(null);
+  const [post, setPost] = useState<PostDetail | null>(initialPost);
   const [commentBody, setCommentBody] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentBody, setEditingCommentBody] = useState("");
   const [reactionBusy, setReactionBusy] = useState<"like" | "favorite" | "delete" | "cancel" | null>(null);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [commentBusyId, setCommentBusyId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPost);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {

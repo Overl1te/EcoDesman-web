@@ -29,9 +29,12 @@ const manrope = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: APP_NAME,
+  authors: [{ name: APP_NAME, url: SITE_URL }],
+  creator: APP_NAME,
+  publisher: APP_NAME,
   title: {
     default: `${APP_NAME} — экологическая карта, события и сообщество`,
-    template: `%s | ${APP_NAME}`,
+    template: "%s",
   },
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
@@ -52,6 +55,16 @@ export const metadata: Metadata = {
     images: [OPEN_GRAPH_IMAGE.url],
   },
   robots: INDEXABLE_ROBOTS,
+  formatDetection: {
+    telephone: false,
+    address: false,
+    email: false,
+  },
+  appleWebApp: {
+    capable: true,
+    title: APP_NAME,
+    statusBarStyle: "default",
+  },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [

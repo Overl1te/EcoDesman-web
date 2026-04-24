@@ -1630,6 +1630,14 @@ img {
   line-height: 1.65;
 }
 
+.post-content p {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
 .post-image-link,
 .gallery-image {
   width: 100%;

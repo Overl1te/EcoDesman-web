@@ -11,8 +11,7 @@ export function MainFeedPage({
 }) {
   return (
     <FeedPageContent
-      title="Лента"
-      titleTag="p"
+      title="ЭкоВыхухоль"
       loadingLabel="Загружаю ленту..."
       emptyStateTitle="Публикаций пока нет"
       emptyStateDescription="Попробуйте изменить фильтры или зайдите позже."

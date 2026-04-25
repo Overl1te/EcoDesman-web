@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -11,6 +10,7 @@ import {
   Inbox,
   LifeBuoy,
   LoaderCircle,
+  MapPinned,
   MessageSquareMore,
   RefreshCcw,
   Search,
@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Sparkles,
   SquarePen,
+  Star,
   UserRound,
 } from "lucide-react";
 import {
@@ -76,6 +77,7 @@ type ThreadFilter = "open" | "archive";
 type ThreadCategory = SupportThreadSummary["category"];
 type ThreadStatus = SupportThreadSummary["status"];
 type ReportStatus = SupportReport["status"];
+type HelpCategoryId = "all" | "Аккаунт" | "Карта" | "Отзывы" | "Прочее";
 type SupportModeConfig = {
   pane: Pane;
   label: string;
@@ -90,23 +92,44 @@ const EMPTY_KNOWLEDGE: SupportKnowledgeResponse = {
   suggested_prompts: [],
 };
 
-const COMMUNICATION_GUIDELINES = [
+const HELP_CATEGORIES: {
+  id: HelpCategoryId;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}[] = [
   {
-    title: "Один диалог = одна проблема",
-    description:
-      "Так проще не смешивать переписку, быстрее закрывать задачу и не терять контекст.",
+    id: "Аккаунт",
+    title: "Аккаунт",
+    description: "Вход, профиль и доступ.",
+    icon: UserRound,
   },
   {
-    title: "Пишите шаги и факты",
-    description:
-      "Страница, действие, ожидаемый результат, фактическая ошибка, устройство и скриншот.",
+    id: "Карта",
+    title: "Карта",
+    description: "Точки, адреса и геолокация.",
+    icon: MapPinned,
   },
   {
-    title: "Закрытый чат больше не редактируется",
-    description:
-      "После закрытия тред архивируется. Для новой проблемы нужно открыть новый диалог.",
+    id: "Отзывы",
+    title: "Отзывы",
+    description: "Публикация, фото и оценки.",
+    icon: Star,
+  },
+  {
+    id: "Прочее",
+    title: "Прочее",
+    description: "Уведомления и другие вопросы.",
+    icon: BookOpenText,
   },
 ];
+
+function getShortAnswer(answer: string): string {
+  const firstSentence = answer.split(/(?<=[.!?])\s+/u)[0] ?? answer;
+  return firstSentence.length > 140
+    ? `${firstSentence.slice(0, 137).trim()}...`
+    : firstSentence;
+}
 
 function toSummary(thread: SupportThreadDetail): SupportThreadSummary {
   return {
@@ -364,10 +387,11 @@ export function SupportCenterPage() {
   const threadIdFromQuery = parseThreadId(searchParams.get("thread"));
   const messageEndRef = useRef<HTMLDivElement | null>(null);
 
-  const [activePane, setActivePane] = useState<Pane>("chats");
+  const [activePane, setActivePane] = useState<Pane>("faq");
   const [threadFilter, setThreadFilter] = useState<ThreadFilter>("open");
   const [threadSearch, setThreadSearch] = useState("");
   const [faqSearch, setFaqSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState<HelpCategoryId>("all");
 
   const [knowledge, setKnowledge] =
     useState<SupportKnowledgeResponse>(EMPTY_KNOWLEDGE);
@@ -462,29 +486,19 @@ export function SupportCenterPage() {
     () => threads.reduce((sum, item) => sum + item.unread_count, 0),
     [threads],
   );
-  const waitingSupportCount = useMemo(
-    () => threads.filter((item) => item.status === "waiting_support").length,
-    [threads],
-  );
   const newReportsCount = useMemo(
     () => reports.filter((item) => item.status === "new").length,
     [reports],
   );
-  const assignedToMeCount = useMemo(() => {
-    if (!user) {
-      return 0;
-    }
-
-    return threads.filter(
-      (item) => item.status !== "closed" && item.assigned_to?.id === user.id,
-    ).length;
-  }, [threads, user]);
 
   const faqEntries = useMemo(() => {
-    if (!deferredFaqSearch) {
-      return knowledge.faq;
-    }
     return knowledge.faq.filter((article) => {
+      if (activeCategory !== "all" && article.category !== activeCategory) {
+        return false;
+      }
+      if (!deferredFaqSearch) {
+        return true;
+      }
       const haystack = [
         article.title,
         article.answer,
@@ -495,7 +509,7 @@ export function SupportCenterPage() {
         .toLowerCase();
       return haystack.includes(deferredFaqSearch);
     });
-  }, [deferredFaqSearch, knowledge.faq]);
+  }, [activeCategory, deferredFaqSearch, knowledge.faq]);
 
   const selectedArticle = useMemo(() => {
     if (selectedArticleId) {
@@ -506,6 +520,12 @@ export function SupportCenterPage() {
     }
     return knowledge.featured[0] ?? knowledge.faq[0] ?? null;
   }, [knowledge.faq, knowledge.featured, selectedArticleId]);
+  const visibleArticle = useMemo(() => {
+    if (selectedArticle && faqEntries.some((article) => article.id === selectedArticle.id)) {
+      return selectedArticle;
+    }
+    return faqEntries[0] ?? null;
+  }, [faqEntries, selectedArticle]);
 
   const selectedReport = useMemo(
     () => reports.find((item) => item.id === selectedReportId) ?? null,
@@ -963,8 +983,8 @@ export function SupportCenterPage() {
       setThreadSubject(title);
       setThreadBody(
         answer
-          ? `Нужна помощь по теме «${title}».\n\nЧто уже проверил:\n${answer}\n\nЧто именно не работает:`
-          : `Нужна помощь по теме «${title}».\n\nЧто именно не работает:`,
+          ? `Не помогла статья «${title}».\n\nЧто уже проверил:\n${answer}\n\nЧто именно не работает:`
+          : `Не помогла статья «${title}».\n\nЧто именно не работает:`,
       );
     },
     [isAuthenticated, openAuthModal, pathname],
@@ -973,10 +993,10 @@ export function SupportCenterPage() {
     activePane === "reports"
       ? "Очередь жалоб"
       : activePane === "faq"
-        ? "База знаний и FAQ"
+        ? "Статьи"
         : activeThread
           ? activeThread.subject
-          : "Выберите диалог";
+          : "Мои обращения";
   const supportModes = useMemo<SupportModeConfig[]>(
     () =>
       canAccessSupport
@@ -1027,35 +1047,24 @@ export function SupportCenterPage() {
   );
   const sidebarDescription = canAccessSupport
     ? "Операционный режим: разберите очередь, откройте диалог и зафиксируйте решение без переключений по разделам."
-    : "Спокойный маршрут для пользователя: сначала быстрый ответ из FAQ, затем отдельный чат по одной проблеме.";
+    : "Ответы на вопросы и поддержка пользователей";
   const stageDescription =
     activePane === "reports"
       ? "Сначала выберите кейс, затем примите решение и при необходимости откройте связанный диалог."
       : activePane === "faq"
-        ? "Быстрые ответы и готовые инструкции. Если статьи недостаточно, обращение можно открыть прямо отсюда."
+        ? "Сначала найдите ответ в статье. Если не помогло, напишите в поддержку."
         : isAuthenticated
           ? "Вся переписка, статус обращения и ответ собраны в одном окне без лишней навигации."
           : "Личный чат появится после входа, а база знаний доступна сразу.";
-  const sidebarStats = canAccessSupport
-    ? [
-        { label: "Ждут ответа", value: waitingSupportCount },
-        { label: "Новые жалобы", value: newReportsCount },
-        { label: "На мне", value: assignedToMeCount },
-      ]
-    : [
-        { label: "Открытых", value: openThreads.length },
-        { label: "Архив", value: archivedThreads.length },
-        { label: "FAQ", value: knowledge.faq.length },
-      ];
   const threadSearchPlaceholder = canAccessSupport
     ? "Тема, пользователь или последнее сообщение"
     : "Тема обращения или последнее сообщение";
   const reportSearchPlaceholder = "Причина, объект или пользователь";
-  const faqSearchPlaceholder = "Тема, ключевое слово или ответ";
+  const faqSearchPlaceholder = "Опишите проблему или вопрос";
 
   return (
     <AppShell
-      title="Поддержка"
+      title="Помощь"
       contentClassName="support-page-content"
       shellContentClassName="shell-content-locked"
       actions={
@@ -1071,46 +1080,123 @@ export function SupportCenterPage() {
       >
         <section className="support-messenger-shell">
           <aside className="support-messenger-sidebar">
-            <div className="support-messenger-sidebar-head">
-              <div>
-                <p className="eyebrow">
-                  {canAccessSupport ? "Support workspace" : "Поддержка"}
-                </p>
-                <h2>{canAccessSupport ? "Очередь" : "FAQ и обращения"}</h2>
-              </div>
+            {canAccessSupport ? (
+              <>
+                <div className="support-messenger-sidebar-head">
+                  <div>
+                    <p className="eyebrow">Support workspace</p>
+                    <h2>Очередь</h2>
+                  </div>
+                </div>
 
-              {!canAccessSupport ? (
+                <p className="support-messenger-sidebar-note">{sidebarDescription}</p>
+
+                <div className="support-mode-menu" aria-label="Режимы поддержки">
+                  {supportModes.map((item) => (
+                    <SupportModeButton
+                      key={item.pane}
+                      item={item}
+                      active={item.pane === activePane}
+                      onSelect={setActivePane}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : activePane === "faq" ? (
+              <>
+                <div className="support-messenger-sidebar-head support-help-heading">
+                  <div>
+                    <h2>Помощь</h2>
+                    <p>{sidebarDescription}</p>
+                  </div>
+                </div>
+
+                <label className="support-search-field support-search-field-large">
+                  <Search className="button-icon" />
+                  <input
+                    value={faqSearch}
+                    onChange={(event) => setFaqSearch(event.target.value)}
+                    placeholder={faqSearchPlaceholder}
+                  />
+                </label>
+
                 <button
                   type="button"
-                  className="button button-primary button-inline"
+                  className="button button-primary support-main-cta"
                   onClick={openThreadComposer}
                 >
                   <SquarePen className="button-icon" />
-                  <span>Новый чат</span>
+                  <span>Написать в поддержку</span>
                 </button>
-              ) : null}
-            </div>
 
-            <p className="support-messenger-sidebar-note">{sidebarDescription}</p>
+                <div className="support-category-grid" aria-label="Категории помощи">
+                  {HELP_CATEGORIES.map((category) => {
+                    const Icon = category.icon;
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        className={`support-category-card ${
+                          activeCategory === category.id ? "is-active" : ""
+                        }`.trim()}
+                        onClick={() => {
+                          setActiveCategory(category.id);
+                          setSelectedArticleId(null);
+                        }}
+                      >
+                        <span className="support-category-icon">
+                          <Icon className="button-icon" />
+                        </span>
+                        <span>
+                          <strong>{category.title}</strong>
+                          <small>{category.description}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-            <div className="support-mode-menu" aria-label="Режимы поддержки">
-              {supportModes.map((item) => (
-                <SupportModeButton
-                  key={item.pane}
-                  item={item}
-                  active={item.pane === activePane}
-                  onSelect={setActivePane}
-                />
-              ))}
-            </div>
+                <button
+                  type="button"
+                  className="button button-muted support-my-requests-button"
+                  onClick={() =>
+                    isAuthenticated
+                      ? setActivePane("chats")
+                      : openAuthModal({ returnTo: pathname })
+                  }
+                >
+                  <MessageSquareMore className="button-icon" />
+                  <span>Мои обращения</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="support-messenger-sidebar-head">
+                  <div>
+                    <p className="eyebrow">Поддержка</p>
+                    <h2>Мои обращения</h2>
+                  </div>
 
-            <div className="support-sidebar-meta" aria-label="Сводка поддержки">
-              {sidebarStats.map((item) => (
-                <span key={item.label} className="chip">
-                  {item.label}: {item.value}
-                </span>
-              ))}
-            </div>
+                  <button
+                    type="button"
+                    className="button button-muted button-inline"
+                    onClick={() => setActivePane("faq")}
+                  >
+                    <BookOpenText className="button-icon" />
+                    <span>Помощь</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="button button-primary support-main-cta"
+                  onClick={openThreadComposer}
+                >
+                  <SquarePen className="button-icon" />
+                  <span>Написать в поддержку</span>
+                </button>
+              </>
+            )}
 
           {activePane === "chats" ? (
             <>
@@ -1190,7 +1276,7 @@ export function SupportCenterPage() {
                             ? "Попробуйте другой запрос."
                             : canAccessSupport
                               ? "Новые обращения появятся автоматически."
-                              : "Откройте первый диалог с поддержкой."
+                              : "У вас пока нет обращений. Попробуйте найти ответ или напишите нам."
                       }
                       action={
                         !canAccessSupport && threadFilter !== "archive" ? (
@@ -1199,7 +1285,7 @@ export function SupportCenterPage() {
                             className="button button-primary"
                             onClick={openThreadComposer}
                           >
-                            Открыть чат
+                            Написать в поддержку
                           </button>
                         ) : undefined
                       }
@@ -1255,7 +1341,7 @@ export function SupportCenterPage() {
             </>
           ) : null}
 
-          {activePane === "faq" ? (
+          {activePane === "faq" && canAccessSupport ? (
             <>
               <label className="support-search-field">
                 <Search className="button-icon" />
@@ -1290,7 +1376,11 @@ export function SupportCenterPage() {
         <section className="support-messenger-stage">
           <div className="support-messenger-stage-head">
             <div>
-              <p className="eyebrow">{activeMode.label}</p>
+              <p className="eyebrow">
+                {activePane === "faq" && !canAccessSupport
+                  ? "База знаний"
+                  : activeMode.label}
+              </p>
               <h3>{mainPaneTitle}</h3>
             </div>
 
@@ -1313,7 +1403,7 @@ export function SupportCenterPage() {
           <div className="support-stage-toolbar">
             <p className="support-stage-note">{stageDescription}</p>
             <div className="support-stage-intro-meta">
-              {activePane === "faq" ? (
+              {activePane === "faq" && canAccessSupport ? (
                 <>
                   <span className="chip">Статей: {knowledge.faq.length}</span>
                   <span className="chip">Подборок: {knowledge.featured.length}</span>
@@ -1327,7 +1417,7 @@ export function SupportCenterPage() {
                   </span>
                 </>
               ) : null}
-              {activePane === "chats" ? (
+              {activePane === "chats" && canAccessSupport ? (
                 <>
                   <span className="chip">Открытых: {openThreads.length}</span>
                   <span className="chip">Архив: {archivedThreads.length}</span>
@@ -1338,92 +1428,79 @@ export function SupportCenterPage() {
 
           {activePane === "faq" ? (
             <div className="support-faq-workspace">
-              <section className="support-guidelines-grid">
-                {COMMUNICATION_GUIDELINES.map((item) => (
-                  <article key={item.title} className="support-guide-card">
-                    <strong>{item.title}</strong>
-                    <p>{item.description}</p>
-                  </article>
-                ))}
-              </section>
-
-              {selectedArticle ? (
-                <section className="support-faq-article panel">
-                  <div className="support-faq-article-head">
-                    <div>
-                      <p className="eyebrow">{selectedArticle.category}</p>
-                      <h4>{selectedArticle.title}</h4>
-                    </div>
-
-                    {!canAccessSupport ? (
-                      <button
-                        type="button"
-                        className="button button-primary"
-                        onClick={() =>
-                          prefillThreadFromArticle(
-                            selectedArticle.title,
-                            selectedArticle.answer,
-                          )
-                        }
-                      >
-                        <LifeBuoy className="button-icon" />
-                        <span>Открыть чат по теме</span>
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <p className="support-faq-article-body">{selectedArticle.answer}</p>
-
-                  <div className="support-faq-keywords">
-                    {selectedArticle.keywords.map((keyword) => (
-                      <span key={keyword} className="chip">
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </section>
+              {knowledgeLoading && !knowledge.faq.length ? (
+                <LoadingBlock label="Загружаю статьи..." />
               ) : (
-                <EmptyState
-                  title="FAQ пуст"
-                  description="Когда база знаний появится, статьи будут показаны здесь."
-                />
-              )}
+                <>
+                  {knowledgeError ? (
+                    <div className="form-banner is-error">{knowledgeError}</div>
+                  ) : null}
 
-              <section className="panel support-faq-featured">
-                <div className="section-row">
-                  <div>
-                    <p className="eyebrow">Featured</p>
-                    <h4>Частые сценарии</h4>
-                  </div>
-                  <Link href="/notifications" className="button button-muted button-inline">
-                    Уведомления
-                  </Link>
-                </div>
-
-                <div className="support-featured-grid">
-                  {knowledge.featured.map((article) => (
-                    <article key={article.id} className="support-knowledge-card">
-                      <div>
-                        <p className="eyebrow">{article.category}</p>
-                        <strong>{article.title}</strong>
-                        <p>{article.answer}</p>
-                      </div>
-                      {!canAccessSupport ? (
+                  <section className="support-articles-panel">
+                    {faqEntries.map((article) => (
+                      <article key={article.id} className="support-article-card">
+                        <div>
+                          <p className="eyebrow">{article.category}</p>
+                          <h4>{article.title}</h4>
+                          <p>{getShortAnswer(article.answer)}</p>
+                        </div>
                         <button
                           type="button"
                           className="button button-muted button-inline"
+                          onClick={() => setSelectedArticleId(article.id)}
+                        >
+                          Открыть
+                        </button>
+                      </article>
+                    ))}
+                  </section>
+
+                  {!faqEntries.length ? (
+                    <EmptyState
+                      title="Ничего не найдено"
+                      description="Попробуйте другой запрос или напишите в поддержку."
+                      action={
+                        <button
+                          type="button"
+                          className="button button-primary"
+                          onClick={openThreadComposer}
+                        >
+                          Написать в поддержку
+                        </button>
+                      }
+                    />
+                  ) : null}
+
+                  {visibleArticle ? (
+                    <section className="support-faq-article panel">
+                      <div className="support-faq-article-head">
+                        <div>
+                          <p className="eyebrow">{visibleArticle.category}</p>
+                          <h4>{visibleArticle.title}</h4>
+                        </div>
+                      </div>
+
+                      <p className="support-faq-article-body">{visibleArticle.answer}</p>
+
+                      {!canAccessSupport ? (
+                        <button
+                          type="button"
+                          className="button button-primary button-inline"
                           onClick={() =>
-                            prefillThreadFromArticle(article.title, article.answer)
+                            prefillThreadFromArticle(
+                              visibleArticle.title,
+                              visibleArticle.answer,
+                            )
                           }
                         >
                           <LifeBuoy className="button-icon" />
-                          <span>Нужна помощь</span>
+                          <span>Не помогло? Написать в поддержку</span>
                         </button>
                       ) : null}
-                    </article>
-                  ))}
-                </div>
-              </section>
+                    </section>
+                  ) : null}
+                </>
+              )}
             </div>
           ) : null}
 
@@ -1777,7 +1854,7 @@ export function SupportCenterPage() {
       <Modal
         open={threadModalOpen}
         title="Новое обращение"
-        description="Опишите проблему как отдельный диалог. FAQ-бот подскажет решение, если вопрос типовой."
+        description="Опишите проблему коротко: что делали, что ожидали и что пошло не так."
         onClose={() => setThreadModalOpen(false)}
         size="lg"
       >
@@ -1860,7 +1937,7 @@ export function SupportCenterPage() {
               ) : (
                 <SendHorizonal className="button-icon" />
               )}
-              <span>{threadCreateBusy ? "Создаю..." : "Открыть чат"}</span>
+              <span>{threadCreateBusy ? "Создаю..." : "Написать в поддержку"}</span>
             </button>
 
             <button

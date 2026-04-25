@@ -5289,12 +5289,10 @@ img {
   height: 100%;
   min-height: 0;
   padding: 26px;
-  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-  border-radius: 32px;
-  background:
-    radial-gradient(circle at top right, rgba(98, 146, 113, 0.1), transparent 34%),
-    linear-gradient(180deg, var(--surface-gradient-start), var(--surface-gradient-end-soft));
-  box-shadow: 0 28px 90px rgba(20, 36, 26, 0.08);
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--card) 84%, var(--surface));
+  box-shadow: 0 18px 54px rgba(20, 36, 26, 0.06);
 }
 
 .support-messenger-sidebar,
@@ -5335,6 +5333,18 @@ img {
 .support-messenger-stage-head h3,
 .support-faq-article-head h4 {
   margin: 0;
+}
+
+.support-help-heading h2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.support-help-heading p {
+  margin: 10px 0 0;
+  color: var(--text-soft);
+  line-height: 1.5;
 }
 
 .support-messenger-sidebar-note,
@@ -5583,6 +5593,18 @@ img {
     box-shadow 0.2s ease;
 }
 
+.support-search-field-large {
+  min-height: 64px;
+  padding: 0 18px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 14px 30px rgba(20, 36, 26, 0.06);
+}
+
+.support-search-field-large input {
+  font-size: 1rem;
+}
+
 .support-search-field:focus-within {
   border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
   background: var(--surface-elevated-hover);
@@ -5599,6 +5621,70 @@ img {
 
 .support-search-field input:focus {
   outline: none;
+}
+
+.support-main-cta {
+  justify-content: center;
+  min-height: 50px;
+}
+
+.support-category-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.support-category-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 18px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.support-category-card:hover,
+.support-category-card.is-active {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  background: color-mix(in srgb, #fff 88%, var(--primary-soft));
+}
+
+.support-category-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 12%, #fff);
+  color: var(--primary);
+}
+
+.support-category-card span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.support-category-card strong {
+  line-height: 1.2;
+}
+
+.support-category-card small {
+  color: var(--text-soft);
+  line-height: 1.35;
+}
+
+.support-my-requests-button {
+  justify-content: center;
 }
 
 .support-stage-toolbar {
@@ -5865,6 +5951,39 @@ img {
   padding-right: 4px;
 }
 
+.support-articles-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.support-article-card {
+  display: grid;
+  gap: 14px;
+  align-content: space-between;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.support-article-card h4 {
+  margin: 0;
+  line-height: 1.25;
+}
+
+.support-article-card p {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.support-faq-article {
+  gap: 16px;
+  background: #fff;
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+}
+
 .support-chat-message {
   max-width: min(72%, 640px);
   padding: 12px 14px;
@@ -5955,6 +6074,7 @@ img {
 
 @media (max-width: 1200px) {
   .support-messenger-shell,
+  .support-articles-panel,
   .support-featured-grid,
   .support-report-workspace {
     grid-template-columns: 1fr;
@@ -6011,6 +6131,7 @@ img {
     right: 14px;
   }
 
+  .support-articles-panel,
   .support-chat-message,
   .support-featured-grid {
     max-width: 100%;

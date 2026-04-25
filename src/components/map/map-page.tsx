@@ -605,10 +605,13 @@ export function MapPage({
           "bottom-right",
         );
 
-        map.on("load", () => {
-          if (cancelled) {
+        let hasInitializedMapLayers = false;
+        const initializeMapLayers = () => {
+          if (cancelled || hasInitializedMapLayers) {
             return;
           }
+
+          hasInitializedMapLayers = true;
 
           map.addSource(pointSourceId, {
             type: "geojson",
@@ -800,7 +803,13 @@ export function MapPage({
           requestAnimationFrame(() => {
             map.resize();
           });
-        });
+        };
+
+        map.once("style.load", initializeMapLayers);
+        map.once("load", initializeMapLayers);
+        if (map.isStyleLoaded()) {
+          initializeMapLayers();
+        }
 
         map.on("error", (event) => {
           console.error("maplibre-error", event.error);

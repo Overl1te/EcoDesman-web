@@ -336,18 +336,30 @@ export function PostDetailPage({
             ) : null}
 
             <div className="meta-row">
-              <span className="metric-item">
+              <button
+                type="button"
+                className={`metric-item metric-button ${post.is_liked ? "is-active is-liked" : ""}`}
+                onClick={() => void handleToggleLike()}
+                disabled={reactionBusy !== null}
+                aria-label={post.is_liked ? "Убрать лайк" : "Поставить лайк"}
+              >
                 <Heart className="meta-icon" />
                 <span>{post.likes_count} лайков</span>
-              </span>
+              </button>
               <span className="metric-item">
                 <MessageCircle className="meta-icon" />
                 <span>{post.comments_count} комментариев</span>
               </span>
-              <span className="metric-item">
+              <button
+                type="button"
+                className={`metric-item metric-button ${post.is_favorited ? "is-active is-favorited" : ""}`}
+                onClick={() => void handleToggleFavorite()}
+                disabled={reactionBusy !== null}
+                aria-label={post.is_favorited ? "Убрать из избранного" : "Добавить в избранное"}
+              >
                 <Bookmark className="meta-icon" />
                 <span>{post.favorites_count} в избранном</span>
-              </span>
+              </button>
               <span className="metric-item">
                 <Eye className="meta-icon" />
                 <span>{post.view_count} просмотров</span>
@@ -355,26 +367,6 @@ export function PostDetailPage({
             </div>
 
             <div className="post-actions">
-              <button
-                type="button"
-                className={`button button-inline ${post.is_liked ? "button-primary" : "button-muted"}`}
-                onClick={() => void handleToggleLike()}
-                disabled={reactionBusy !== null}
-              >
-                <Heart className="button-icon" />
-                <span>Лайк</span>
-              </button>
-
-              <button
-                type="button"
-                className={`button button-inline ${post.is_favorited ? "button-primary" : "button-muted"}`}
-                onClick={() => void handleToggleFavorite()}
-                disabled={reactionBusy !== null}
-              >
-                <Bookmark className="button-icon" />
-                <span>{post.is_favorited ? "В избранном" : "В избранное"}</span>
-              </button>
-
               {primaryImageUrl ? (
                 <Link href={primaryImageUrl} className="button button-inline button-ghost">
                   <ArrowUpRight className="button-icon" />

@@ -358,6 +358,10 @@ export interface HelpCenterResponse {
   contact_block: {
     title: string;
     email: string;
+    operator?: string;
+    inn?: string;
+    ogrn?: string;
+    address?: string;
   };
 }
 

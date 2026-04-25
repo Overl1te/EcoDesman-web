@@ -238,30 +238,33 @@ export function AuthDialog() {
         <div className="auth-social-block" aria-label="Вход через внешние сервисы">
           <button
             type="button"
-            className="auth-social-button auth-social-vk"
-            disabled={loading}
+            className="auth-social-button auth-social-vk is-unavailable"
+            disabled
             onClick={() => void handleSocialAuth("vk")}
           >
             <span aria-hidden="true">VK</span>
             <strong>ВКонтакте</strong>
+            <small>Недоступно</small>
           </button>
           <button
             type="button"
-            className="auth-social-button auth-social-google"
-            disabled={loading}
+            className="auth-social-button auth-social-google is-unavailable"
+            disabled
             onClick={() => void handleSocialAuth("google")}
           >
             <span aria-hidden="true">G</span>
             <strong>Google</strong>
+            <small>Недоступно</small>
           </button>
           <button
             type="button"
-            className="auth-social-button auth-social-yandex"
-            disabled={loading}
+            className="auth-social-button auth-social-yandex is-unavailable"
+            disabled
             onClick={() => void handleSocialAuth("yandex")}
           >
             <span aria-hidden="true">Я</span>
             <strong>Яндекс</strong>
+            <small>Недоступно</small>
           </button>
         </div>
 

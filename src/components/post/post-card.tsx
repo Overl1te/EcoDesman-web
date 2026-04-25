@@ -151,14 +151,26 @@ export function PostCard({
 
       <footer className="post-card-footer">
         <div className="metrics-row">
-          <span className="metric-item">
+          <button
+            type="button"
+            className={`metric-item metric-button ${post.is_liked ? "is-active is-liked" : ""}`}
+            onClick={() => void handleLike()}
+            disabled={busy !== null}
+            aria-label={post.is_liked ? "Убрать лайк" : "Поставить лайк"}
+          >
             <Heart className="meta-icon" />
             <span>{compactCount(post.likes_count)}</span>
-          </span>
-          <span className="metric-item">
+          </button>
+          <button
+            type="button"
+            className={`metric-item metric-button ${post.is_favorited ? "is-active is-favorited" : ""}`}
+            onClick={() => void handleFavorite()}
+            disabled={busy !== null}
+            aria-label={post.is_favorited ? "Убрать из избранного" : "Добавить в избранное"}
+          >
             <Bookmark className="meta-icon" />
             <span>{compactCount(post.favorites_count)}</span>
-          </span>
+          </button>
           <span className="metric-item">
             <MessageCircle className="meta-icon" />
             <span>{compactCount(post.comments_count)}</span>
@@ -170,26 +182,6 @@ export function PostCard({
         </div>
 
         <div className="post-actions">
-          <button
-            type="button"
-            className={`button button-inline ${post.is_liked ? "button-primary" : "button-muted"}`}
-            onClick={() => void handleLike()}
-            disabled={busy !== null}
-          >
-            <Heart className="button-icon" />
-            <span>Лайк</span>
-          </button>
-
-          <button
-            type="button"
-            className={`button button-inline ${post.is_favorited ? "button-primary" : "button-muted"}`}
-            onClick={() => void handleFavorite()}
-            disabled={busy !== null}
-          >
-            <Bookmark className="button-icon" />
-            <span>{post.is_favorited ? "В избранном" : "В избранное"}</span>
-          </button>
-
           {!post.is_owner ? (
             <ReportContentButton
               targetLabel={post.title || post.preview_text || "Пост"}

@@ -218,6 +218,31 @@
   line-height: 1.55;
 }
 
+.legal-help-contact-details {
+  display: grid;
+  gap: 8px;
+  max-width: 680px;
+  margin: 18px 0 0;
+  color: #2f332d;
+}
+
+.legal-help-contact-details div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.legal-help-contact-details dt {
+  color: #6b7167;
+  font-size: 0.88rem;
+}
+
+.legal-help-contact-details dd {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
 .legal-breadcrumbs {
   display: flex;
   flex-wrap: wrap;
@@ -504,6 +529,11 @@
     grid-template-columns: 1fr;
     gap: 2px;
   }
+
+  .legal-help-contact-details div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
 }
 
 @media print {
@@ -534,6 +564,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
+  margin-bottom: 14px;
 }
 
 .auth-social-button {
@@ -542,6 +573,7 @@
   min-height: 46px;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
@@ -564,6 +596,20 @@
   transform: none;
 }
 
+.auth-social-button.is-unavailable {
+  cursor: not-allowed;
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--text-muted);
+  opacity: 0.78;
+}
+
+.auth-social-button.is-unavailable:hover {
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: none;
+  transform: none;
+}
+
 .auth-social-button span {
   display: inline-flex;
   width: 24px;
@@ -581,6 +627,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.9rem;
+}
+
+.auth-social-button small {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-soft);
+  text-align: center;
+}
+
+.auth-social-button.is-unavailable strong {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
 }
 
 .auth-social-vk span {
@@ -3410,6 +3469,36 @@ img {
   align-items: center;
   gap: 8px;
   min-height: 24px;
+}
+
+.metric-button {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  transition: color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+.metric-button:hover {
+  color: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.metric-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+  transform: none;
+}
+
+.metric-button.is-liked {
+  color: #d83b56;
+}
+
+.metric-button.is-favorited {
+  color: #315f31;
 }
 
 .meta-icon {

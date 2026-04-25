@@ -158,6 +158,32 @@ export function HelpCenterPage({
               По вопросам документов и обработки персональных данных можно написать
               оператору сервиса.
             </p>
+            <dl className="legal-help-contact-details">
+              {content.contact_block.operator ? (
+                <div>
+                  <dt>Оператор</dt>
+                  <dd>{content.contact_block.operator}</dd>
+                </div>
+              ) : null}
+              {content.contact_block.inn ? (
+                <div>
+                  <dt>ИНН</dt>
+                  <dd>{content.contact_block.inn}</dd>
+                </div>
+              ) : null}
+              {content.contact_block.ogrn ? (
+                <div>
+                  <dt>ОГРН</dt>
+                  <dd>{content.contact_block.ogrn}</dd>
+                </div>
+              ) : null}
+              {content.contact_block.address ? (
+                <div>
+                  <dt>Адрес</dt>
+                  <dd>{content.contact_block.address}</dd>
+                </div>
+              ) : null}
+            </dl>
           </div>
           <a href={`mailto:${content.contact_block.email}`} className="button button-primary">
             <Mail className="button-icon" />

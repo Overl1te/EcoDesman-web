@@ -506,12 +506,10 @@ export interface ProfileUpdatePayload {
   username?: string;
   email?: string;
   display_name?: string;
-  phone?: string | null;
   avatar_url?: string;
   status_text?: string;
   bio?: string;
   city?: string;
-  website_url?: string;
   telegram_url?: string;
   vk_url?: string;
   instagram_url?: string;

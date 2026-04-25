@@ -67,11 +67,9 @@ export function ProfileSettingsPage() {
         display_name: String(formData.get("display_name") || ""),
         username: String(formData.get("username") || ""),
         email: String(formData.get("email") || ""),
-        phone: String(formData.get("phone") || "") || null,
         status_text: String(formData.get("status_text") || ""),
         bio: String(formData.get("bio") || ""),
         city: String(formData.get("city") || ""),
-        website_url: String(formData.get("website_url") || ""),
         telegram_url: String(formData.get("telegram_url") || ""),
         vk_url: String(formData.get("vk_url") || ""),
         instagram_url: String(formData.get("instagram_url") || ""),
@@ -202,10 +200,6 @@ export function ProfileSettingsPage() {
               <input name="email" defaultValue={user.email} />
             </label>
             <label className="field">
-              <span>Телефон</span>
-              <input name="phone" defaultValue={user.phone ?? ""} />
-            </label>
-            <label className="field">
               <span>Город</span>
               <input name="city" defaultValue={user.city} />
             </label>
@@ -221,10 +215,6 @@ export function ProfileSettingsPage() {
           </label>
 
           <div className="two-columns">
-            <label className="field">
-              <span>Сайт</span>
-              <input name="website_url" defaultValue={user.website_url} />
-            </label>
             <label className="field">
               <span>Telegram</span>
               <input name="telegram_url" defaultValue={user.telegram_url} />

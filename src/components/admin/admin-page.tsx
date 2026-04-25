@@ -1,22 +1,21 @@
 "use client";
 
+import type React from "react";
 import Link from "next/link";
 import {
   Check,
+  ChevronDown,
+  ChevronRight,
   Eye,
   EyeOff,
   FileText,
-  Images,
   MapPinned,
-  MessageSquare,
+  MoreHorizontal,
   Newspaper,
-  Shield,
-  ShieldAlert,
-  Trash2,
+  Plus,
   UsersRound,
-  Video,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -24,6 +23,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingBlock } from "@/components/ui/loading-block";
 import {
   banUser,
+  bulkAdminPosts,
   createAdminMapCategory,
   createAdminMapPoint,
   deleteAdminMapCategory,
@@ -63,6 +63,8 @@ type PublicationStatus = "all" | "published" | "draft";
 type UserStatusFilter = "all" | "active" | "banned" | "admin";
 type PointStatusFilter = "all" | "active" | "hidden";
 type PointCategoryFilter = "all" | number;
+type MapMode = "list" | "create";
+type PostOrdering = "recent" | "popular" | "recommended";
 
 interface MapPointFormState {
   slug: string;
@@ -94,84 +96,48 @@ const HEX_COLOR_PATTERN = /^#[0-9A-F]{6}$/i;
 
 function normalizeHexColor(value: string, fallback = DEFAULT_MARKER_COLOR) {
   const normalized = value.trim().toUpperCase();
-  if (HEX_COLOR_PATTERN.test(normalized)) {
-    return normalized;
-  }
-  return fallback;
+  return HEX_COLOR_PATTERN.test(normalized) ? normalized : fallback;
 }
 
 function createEmptyPointForm(): MapPointFormState {
   return {
-    slug: "",
-    title: "",
-    short_description: "",
-    description: "",
-    address: "",
-    working_hours: "",
-    latitude: "",
-    longitude: "",
-    marker_color: DEFAULT_MARKER_COLOR,
-    is_active: true,
-    sort_order: "0",
-    category_ids: [],
-    image_urls_text: "",
+    slug: "", title: "", short_description: "", description: "",
+    address: "", working_hours: "", latitude: "", longitude: "",
+    marker_color: DEFAULT_MARKER_COLOR, is_active: true, sort_order: "0",
+    category_ids: [], image_urls_text: "",
   };
 }
 
 function createEmptyCategoryForm(): MapCategoryFormState {
-  return {
-    slug: "",
-    title: "",
-    sort_order: "0",
-    color: DEFAULT_MARKER_COLOR,
-  };
+  return { slug: "", title: "", sort_order: "0", color: DEFAULT_MARKER_COLOR };
 }
 
 function mapPointToForm(point: AdminMapPoint): MapPointFormState {
   return {
-    slug: point.slug,
-    title: point.title,
-    short_description: point.short_description,
-    description: point.description,
-    address: point.address,
-    working_hours: point.working_hours,
-    latitude: String(point.latitude),
-    longitude: String(point.longitude),
-    marker_color: normalizeHexColor(point.marker_color),
-    is_active: point.is_active,
+    slug: point.slug, title: point.title,
+    short_description: point.short_description, description: point.description,
+    address: point.address, working_hours: point.working_hours,
+    latitude: String(point.latitude), longitude: String(point.longitude),
+    marker_color: normalizeHexColor(point.marker_color), is_active: point.is_active,
     sort_order: String(point.sort_order),
-    category_ids: point.categories.map((category) => category.id),
-    image_urls_text: point.images.map((image) => image.image_url).join("\n"),
+    category_ids: point.categories.map((c) => c.id),
+    image_urls_text: point.images.map((i) => i.image_url).join("\n"),
   };
 }
 
-function categoryToForm(category: MapPointCategory): MapCategoryFormState {
-  return {
-    slug: category.slug,
-    title: category.title,
-    sort_order: String(category.sort_order),
-    color: normalizeHexColor(category.color),
-  };
+function categoryToForm(cat: MapPointCategory): MapCategoryFormState {
+  return { slug: cat.slug, title: cat.title, sort_order: String(cat.sort_order), color: normalizeHexColor(cat.color) };
 }
 
 function buildMapPointPayload(form: MapPointFormState): AdminMapPointWritePayload {
   return {
-    slug: form.slug.trim(),
-    title: form.title.trim(),
-    short_description: form.short_description.trim(),
-    description: form.description.trim(),
-    address: form.address.trim(),
-    working_hours: form.working_hours.trim(),
-    latitude: Number(form.latitude),
-    longitude: Number(form.longitude),
-    marker_color: normalizeHexColor(form.marker_color),
-    is_active: form.is_active,
-    sort_order: Number(form.sort_order) || 0,
-    category_ids: form.category_ids,
-    image_urls: form.image_urls_text
-      .split("\n")
-      .map((value) => value.trim())
-      .filter(Boolean),
+    slug: form.slug.trim(), title: form.title.trim(),
+    short_description: form.short_description.trim(), description: form.description.trim(),
+    address: form.address.trim(), working_hours: form.working_hours.trim(),
+    latitude: Number(form.latitude), longitude: Number(form.longitude),
+    marker_color: normalizeHexColor(form.marker_color), is_active: form.is_active,
+    sort_order: Number(form.sort_order) || 0, category_ids: form.category_ids,
+    image_urls: form.image_urls_text.split("\n").map((v) => v.trim()).filter(Boolean),
   };
 }
 
@@ -180,53 +146,152 @@ function getErrorMessage(error: unknown): string {
 }
 
 function getRoleLabel(role: UserRole): string {
-  if (role === "admin") {
-    return "Админ";
-  }
-
-  if (role === "support") {
-    return "Техподдержка";
-  }
-
-  if (role === "moderator") {
-    return "Модератор";
-  }
-
-  return "Пользователь";
+  const map: Record<UserRole, string> = {
+    admin: "Админ", support: "Техподдержка", moderator: "Модератор", user: "Пользователь",
+  };
+  return map[role] ?? "Пользователь";
 }
 
 function getKindLabel(kind: PostListItem["kind"]): string {
-  if (kind === "event") {
-    return "Событие";
-  }
-
-  if (kind === "story") {
-    return "История";
-  }
-
+  if (kind === "event") return "Событие";
+  if (kind === "story") return "История";
   return "Новость";
 }
 
+function buildPageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) {
+    pages.push(p);
+  }
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
+}
+
+// ─── Collapsible section helper ─────────────────────────────────────────────
+function PointSection({ title, children, defaultOpen = true }: {
+  title: string; children: React.ReactNode; defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="admin-point-section">
+      <button type="button" className="admin-point-section-head" onClick={() => setOpen((o) => !o)}>
+        <span>{title}</span>
+        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+      </button>
+      {open ? <div className="admin-point-section-body">{children}</div> : null}
+    </div>
+  );
+}
+
+// ─── Overflow menu ───────────────────────────────────────────────────────────
+function OverflowMenu({ items }: { items: { label: string; danger?: boolean; disabled?: boolean; onClick: () => void }[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  return (
+    <div className="admin-overflow" ref={ref}>
+      <button
+        type="button"
+        className="button button-ghost button-inline admin-overflow-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Ещё действия"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open ? (
+        <div className="admin-overflow-menu">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              className={`admin-overflow-item${item.danger ? " is-danger" : ""}`}
+              disabled={item.disabled}
+              onClick={() => { setOpen(false); item.onClick(); }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Numbered pagination ─────────────────────────────────────────────────────
+function Pagination({ page, total, pageSize, loading, onPage }: {
+  page: number; total: number; pageSize: number; loading: boolean; onPage: (p: number) => void;
+}) {
+  const totalPages = Math.ceil(total / pageSize);
+  if (totalPages <= 1) return null;
+  const pages = buildPageNumbers(page, totalPages);
+
+  return (
+    <div className="admin-pagination">
+      {pages.map((p, i) =>
+        p === "..." ? (
+          <span key={`ellipsis-${i}`} className="admin-pagination-ellipsis">…</span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            className={`admin-pagination-btn${p === page ? " is-active" : ""}`}
+            disabled={loading || p === page}
+            onClick={() => onPage(p as number)}
+          >
+            {p}
+          </button>
+        ),
+      )}
+    </div>
+  );
+}
+
+// ─── Status badge ────────────────────────────────────────────────────────────
+function StatusBadge({ label, color }: { label: string; color: "green" | "grey" | "yellow" | "red" }) {
+  return <span className={`admin-status-badge is-${color}`}>{label}</span>;
+}
+
+function PostStatusBadge({ post }: { post: PostListItem }) {
+  return post.is_published
+    ? <StatusBadge label="Опубликован" color="green" />
+    : <StatusBadge label="Черновик" color="grey" />;
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
 export function AdminPage() {
   const { user, isAuthenticated, refreshUser, openAuthModal } = useAuth();
   const canAccessAdmin = Boolean(user?.can_access_admin);
 
   const [activeTab, setActiveTab] = useState<AdminTab>("posts");
   const [overview, setOverview] = useState<AdminOverview | null>(null);
-  const [overviewError, setOverviewError] = useState<string | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [mutationKey, setMutationKey] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
+  // Posts
   const [posts, setPosts] = useState<PaginatedResponse<PostListItem> | null>(null);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState<string | null>(null);
   const [postSearch, setPostSearch] = useState("");
   const [postKind, setPostKind] = useState<"all" | PostListItem["kind"]>("all");
-  const [postPublicationStatus, setPostPublicationStatus] =
-    useState<PublicationStatus>("all");
+  const [postPublicationStatus, setPostPublicationStatus] = useState<PublicationStatus>("all");
+  const [postOrdering, setPostOrdering] = useState<PostOrdering>("recent");
   const [postsPage, setPostsPage] = useState(1);
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<number>>(new Set());
+  const postsBootstrapped = useRef(false);
 
+  // Users
   const [users, setUsers] = useState<PaginatedResponse<AdminUser> | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
@@ -234,55 +299,45 @@ export function AdminPage() {
   const [userRole, setUserRole] = useState<"all" | UserRole>("all");
   const [userStatus, setUserStatus] = useState<UserStatusFilter>("all");
   const [usersPage, setUsersPage] = useState(1);
+  const usersBootstrapped = useRef(false);
 
+  // Map
   const [categories, setCategories] = useState<MapPointCategory[]>([]);
   const [points, setPoints] = useState<PaginatedResponse<AdminMapPoint> | null>(null);
   const [pointsLoading, setPointsLoading] = useState(false);
   const [pointsError, setPointsError] = useState<string | null>(null);
   const [pointSearch, setPointSearch] = useState("");
   const [pointStatus, setPointStatus] = useState<PointStatusFilter>("all");
-  const [pointCategoryFilter, setPointCategoryFilter] =
-    useState<PointCategoryFilter>("all");
+  const [pointCategoryFilter, setPointCategoryFilter] = useState<PointCategoryFilter>("all");
   const [selectedPointId, setSelectedPointId] = useState<number | "new">("new");
   const [pointForm, setPointForm] = useState<MapPointFormState>(createEmptyPointForm());
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "new">("new");
-  const [categoryForm, setCategoryForm] = useState<MapCategoryFormState>(
-    createEmptyCategoryForm(),
-  );
+  const [categoryForm, setCategoryForm] = useState<MapCategoryFormState>(createEmptyCategoryForm());
+  const [mapMode, setMapMode] = useState<MapMode>("list");
   const [userMarkers, setUserMarkers] = useState<PaginatedResponse<AdminUserMapMarker> | null>(null);
   const [userMarkersLoading, setUserMarkersLoading] = useState(false);
   const [userMarkersError, setUserMarkersError] = useState<string | null>(null);
 
+  // ── Loaders ──────────────────────────────────────────────────────────────
   async function loadOverview() {
     setOverviewLoading(true);
-    setOverviewError(null);
-
-    try {
-      setOverview(await getAdminOverview());
-    } catch (error) {
-      setOverviewError(getErrorMessage(error));
-    } finally {
-      setOverviewLoading(false);
-    }
+    try { setOverview(await getAdminOverview()); }
+    catch { /* best-effort */ }
+    finally { setOverviewLoading(false); }
   }
 
   async function loadPosts(page = 1) {
     setPostsLoading(true);
     setPostsError(null);
     setPostsPage(page);
-
     try {
-      setPosts(
-        await listAdminPosts({
-          page,
-          search: postSearch.trim() || undefined,
-          kind: postKind === "all" ? undefined : postKind,
-          is_published:
-            postPublicationStatus === "all"
-              ? undefined
-              : postPublicationStatus === "published",
-        }),
-      );
+      setPosts(await listAdminPosts({
+        page,
+        search: postSearch.trim() || undefined,
+        kind: postKind === "all" ? undefined : postKind,
+        is_published: postPublicationStatus === "all" ? undefined : postPublicationStatus === "published",
+        ordering: postOrdering,
+      }));
     } catch (error) {
       setPostsError(getErrorMessage(error));
     } finally {
@@ -294,16 +349,13 @@ export function AdminPage() {
     setUsersLoading(true);
     setUsersError(null);
     setUsersPage(page);
-
     try {
-      setUsers(
-        await listAdminUsers({
-          page,
-          search: userSearch.trim() || undefined,
-          role: userRole === "all" ? undefined : userRole,
-          status: userStatus === "all" ? undefined : userStatus,
-        }),
-      );
+      setUsers(await listAdminUsers({
+        page,
+        search: userSearch.trim() || undefined,
+        role: userRole === "all" ? undefined : userRole,
+        status: userStatus === "all" ? undefined : userStatus,
+      }));
     } catch (error) {
       setUsersError(getErrorMessage(error));
     } finally {
@@ -312,30 +364,20 @@ export function AdminPage() {
   }
 
   async function loadCategories() {
-    try {
-      setCategories(await listAdminMapCategories());
-    } catch (error) {
-      setGlobalError(getErrorMessage(error));
-    }
+    try { setCategories(await listAdminMapCategories()); }
+    catch (error) { setGlobalError(getErrorMessage(error)); }
   }
 
   async function loadPoints() {
     setPointsLoading(true);
     setPointsError(null);
-
     try {
-      setPoints(
-        await listAdminMapPoints({
-          page_size: 100,
-          search: pointSearch.trim() || undefined,
-          is_active:
-            pointStatus === "all"
-              ? undefined
-              : pointStatus === "active",
-          category_id:
-            pointCategoryFilter === "all" ? undefined : pointCategoryFilter,
-        }),
-      );
+      setPoints(await listAdminMapPoints({
+        page_size: 100,
+        search: pointSearch.trim() || undefined,
+        is_active: pointStatus === "all" ? undefined : pointStatus === "active",
+        category_id: pointCategoryFilter === "all" ? undefined : pointCategoryFilter,
+      }));
     } catch (error) {
       setPointsError(getErrorMessage(error));
     } finally {
@@ -346,18 +388,12 @@ export function AdminPage() {
   async function loadUserMarkers() {
     setUserMarkersLoading(true);
     setUserMarkersError(null);
-
     try {
-      setUserMarkers(
-        await listAdminUserMapMarkers({
-          page_size: 100,
-          search: pointSearch.trim() || undefined,
-          is_active:
-            pointStatus === "all"
-              ? undefined
-              : pointStatus === "active",
-        }),
-      );
+      setUserMarkers(await listAdminUserMapMarkers({
+        page_size: 100,
+        search: pointSearch.trim() || undefined,
+        is_active: pointStatus === "all" ? undefined : pointStatus === "active",
+      }));
     } catch (error) {
       setUserMarkersError(getErrorMessage(error));
     } finally {
@@ -365,64 +401,55 @@ export function AdminPage() {
     }
   }
 
+  // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!canAccessAdmin) {
-      return;
-    }
-
-    void Promise.all([
-      loadOverview(),
-      loadPosts(1),
-      loadUsers(1),
-      loadCategories(),
-      loadPoints(),
-      loadUserMarkers(),
-    ]);
-    // Initial admin bootstrap should run once after access is confirmed.
+    if (!canAccessAdmin) return;
+    void Promise.all([loadOverview(), loadPosts(1), loadUsers(1), loadCategories(), loadPoints(), loadUserMarkers()]);
+    postsBootstrapped.current = true;
+    usersBootstrapped.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canAccessAdmin]);
 
+  // ── Auto-apply posts filters ──────────────────────────────────────────────
   useEffect(() => {
-    if (selectedPointId === "new") {
-      return;
-    }
+    if (!postsBootstrapped.current) return;
+    const timer = setTimeout(() => void loadPosts(1), postSearch ? 400 : 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postSearch, postKind, postPublicationStatus, postOrdering]);
 
-    const nextPoint = points?.results.find((point) => point.id === selectedPointId);
-    if (!nextPoint) {
-      setSelectedPointId("new");
-      setPointForm(createEmptyPointForm());
-    }
+  // ── Auto-apply users filters ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!usersBootstrapped.current) return;
+    const timer = setTimeout(() => void loadUsers(1), userSearch ? 400 : 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userSearch, userRole, userStatus]);
+
+  // ── Sync point form when selection changes ────────────────────────────────
+  useEffect(() => {
+    if (selectedPointId === "new") return;
+    const next = points?.results.find((p) => p.id === selectedPointId);
+    if (!next) { setSelectedPointId("new"); setPointForm(createEmptyPointForm()); }
   }, [points, selectedPointId]);
 
   useEffect(() => {
-    if (selectedCategoryId === "new") {
-      return;
-    }
-
-    const nextCategory = categories.find((category) => category.id === selectedCategoryId);
-    if (!nextCategory) {
-      setSelectedCategoryId("new");
-      setCategoryForm(createEmptyCategoryForm());
+    if (selectedCategoryId === "new") return;
+    if (!categories.some((c) => c.id === selectedCategoryId)) {
+      setSelectedCategoryId("new"); setCategoryForm(createEmptyCategoryForm());
     }
   }, [categories, selectedCategoryId]);
 
   useEffect(() => {
-    if (
-      pointCategoryFilter !== "all" &&
-      !categories.some((category) => category.id === pointCategoryFilter)
-    ) {
+    if (pointCategoryFilter !== "all" && !categories.some((c) => c.id === pointCategoryFilter)) {
       setPointCategoryFilter("all");
     }
   }, [categories, pointCategoryFilter]);
 
-  async function runMutation<T>(
-    key: string,
-    action: () => Promise<T>,
-    onSuccess?: (result: T) => Promise<void> | void,
-  ) {
+  // ── Mutation helper ────────────────────────────────────────────────────────
+  async function runMutation<T>(key: string, action: () => Promise<T>, onSuccess?: (r: T) => Promise<void> | void) {
     setMutationKey(key);
     setGlobalError(null);
-
     try {
       const result = await action();
       await onSuccess?.(result);
@@ -433,62 +460,68 @@ export function AdminPage() {
     }
   }
 
+  // ── Post actions ──────────────────────────────────────────────────────────
   async function handleTogglePublished(post: PostListItem) {
     await runMutation(`post-publish-${post.id}`, async () => {
       await updatePost(post.id, { is_published: !post.is_published });
-    }, async () => {
-      await Promise.all([loadPosts(postsPage), loadOverview()]);
-    });
+    }, async () => { await Promise.all([loadPosts(postsPage), loadOverview()]); });
   }
 
   async function handleDeletePost(postId: number) {
-    if (!window.confirm("Удалить пост без возможности восстановления?")) {
-      return;
-    }
-
+    if (!window.confirm("Удалить пост без возможности восстановления?")) return;
     await runMutation(`post-delete-${postId}`, async () => {
       await deletePost(postId);
-    }, async () => {
-      await Promise.all([loadPosts(postsPage), loadOverview()]);
+    }, async () => { await Promise.all([loadPosts(postsPage), loadOverview()]); setSelectedPostIds(new Set()); });
+  }
+
+  async function handleBulkAction(action: "publish" | "unpublish" | "delete") {
+    if (action === "delete" && !window.confirm(`Удалить ${selectedPostIds.size} постов?`)) return;
+    const ids = Array.from(selectedPostIds);
+    await runMutation(`bulk-${action}`, async () => {
+      await bulkAdminPosts({ action, ids });
+    }, async () => { setSelectedPostIds(new Set()); await Promise.all([loadPosts(postsPage), loadOverview()]); });
+  }
+
+  function togglePostSelection(id: number) {
+    setSelectedPostIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
     });
   }
 
+  function toggleAllPosts() {
+    const allIds = posts?.results.map((p) => p.id) ?? [];
+    const allSelected = allIds.every((id) => selectedPostIds.has(id));
+    setSelectedPostIds(allSelected ? new Set() : new Set(allIds));
+  }
+
+  // ── User actions ──────────────────────────────────────────────────────────
   async function handleUserRoleChange(adminUser: AdminUser, role: UserRole) {
     await runMutation(`user-role-${adminUser.id}`, async () => {
       await updateUserRole(adminUser.id, role);
     }, async () => {
       await loadUsers(usersPage);
-      if (user?.id === adminUser.id) {
-        await refreshUser();
-      }
+      if (user?.id === adminUser.id) await refreshUser();
     });
   }
 
-  async function handleUserModeration(
-    adminUser: AdminUser,
-    action: "warn" | "ban" | "unban",
-  ) {
+  async function handleUserModeration(adminUser: AdminUser, action: "warn" | "ban" | "unban") {
     await runMutation(`user-${action}-${adminUser.id}`, async () => {
-      if (action === "warn") {
-        await warnUser(adminUser.id);
-        return;
-      }
-      if (action === "ban") {
-        await banUser(adminUser.id);
-        return;
-      }
+      if (action === "warn") { await warnUser(adminUser.id); return; }
+      if (action === "ban") { await banUser(adminUser.id); return; }
       await unbanUser(adminUser.id);
     }, async () => {
       await Promise.all([loadUsers(usersPage), loadOverview()]);
-      if (user?.id === adminUser.id) {
-        await refreshUser();
-      }
+      if (user?.id === adminUser.id) await refreshUser();
     });
   }
 
+  // ── Point / category actions ──────────────────────────────────────────────
   function handlePointSelection(point: AdminMapPoint) {
     setSelectedPointId(point.id);
     setPointForm(mapPointToForm(point));
+    setMapMode("create");
   }
 
   function resetPointEditor() {
@@ -496,44 +529,18 @@ export function AdminPage() {
     setPointForm(createEmptyPointForm());
   }
 
-  function handleCategorySelection(category: MapPointCategory) {
-    setSelectedCategoryId(category.id);
-    setCategoryForm(categoryToForm(category));
-  }
-
-  function resetCategoryEditor() {
-    setSelectedCategoryId("new");
-    setCategoryForm(createEmptyCategoryForm());
-  }
-
   function setPointCategories(categoryIds: number[]) {
-    setPointForm((current) => ({
-      ...current,
-      category_ids: Array.from(new Set(categoryIds)),
-    }));
+    setPointForm((c) => ({ ...c, category_ids: Array.from(new Set(categoryIds)) }));
   }
 
   async function handleSavePoint() {
     const payload = buildMapPointPayload(pointForm);
-
-    if (!payload.slug || !payload.title) {
-      setGlobalError("Для точки нужны как минимум slug и название.");
-      return;
-    }
-    if (Number.isNaN(payload.latitude) || Number.isNaN(payload.longitude)) {
-      setGlobalError("Координаты точки должны быть числами.");
-      return;
-    }
+    if (!payload.slug || !payload.title) { setGlobalError("Для точки нужны slug и название."); return; }
+    if (Number.isNaN(payload.latitude) || Number.isNaN(payload.longitude)) { setGlobalError("Координаты должны быть числами."); return; }
 
     await runMutation(
       selectedPointId === "new" ? "point-create" : `point-save-${selectedPointId}`,
-      async () => {
-        if (selectedPointId === "new") {
-          return createAdminMapPoint(payload);
-        }
-
-        return updateAdminMapPoint(selectedPointId, payload);
-      },
+      async () => selectedPointId === "new" ? createAdminMapPoint(payload) : updateAdminMapPoint(selectedPointId, payload),
       async (savedPoint) => {
         setSelectedPointId(savedPoint.id);
         setPointForm(mapPointToForm(savedPoint));
@@ -543,68 +550,37 @@ export function AdminPage() {
   }
 
   async function handleDeletePoint() {
-    if (selectedPointId === "new") {
-      return;
-    }
-    if (!window.confirm("Удалить точку карты?")) {
-      return;
-    }
-
+    if (selectedPointId === "new" || !window.confirm("Удалить точку карты?")) return;
     await runMutation(`point-delete-${selectedPointId}`, async () => {
       await deleteAdminMapPoint(selectedPointId);
-    }, async () => {
-      resetPointEditor();
-      await Promise.all([loadPoints(), loadOverview()]);
-    });
+    }, async () => { resetPointEditor(); setMapMode("list"); await Promise.all([loadPoints(), loadOverview()]); });
   }
 
   async function handleSaveCategory() {
     const payload = {
-      slug: categoryForm.slug.trim(),
-      title: categoryForm.title.trim(),
-      sort_order: Number(categoryForm.sort_order) || 0,
-      color: normalizeHexColor(categoryForm.color),
+      slug: categoryForm.slug.trim(), title: categoryForm.title.trim(),
+      sort_order: Number(categoryForm.sort_order) || 0, color: normalizeHexColor(categoryForm.color),
     };
-
-    if (!payload.slug || !payload.title) {
-      setGlobalError("Для категории нужны slug и название.");
-      return;
-    }
+    if (!payload.slug || !payload.title) { setGlobalError("Для категории нужны slug и название."); return; }
 
     await runMutation(
-      selectedCategoryId === "new"
-        ? "category-create"
-        : `category-save-${selectedCategoryId}`,
-      async () => {
-        if (selectedCategoryId === "new") {
-          return createAdminMapCategory(payload);
-        }
-
-        return updateAdminMapCategory(selectedCategoryId, payload);
-      },
-      async (savedCategory) => {
-        setSelectedCategoryId(savedCategory.id);
-        setCategoryForm(categoryToForm(savedCategory));
+      selectedCategoryId === "new" ? "category-create" : `category-save-${selectedCategoryId}`,
+      async () => selectedCategoryId === "new" ? createAdminMapCategory(payload) : updateAdminMapCategory(selectedCategoryId, payload),
+      async (saved) => {
+        setSelectedCategoryId(saved.id);
+        setCategoryForm(categoryToForm(saved));
         await Promise.all([loadCategories(), loadPoints()]);
       },
     );
   }
 
   async function handleDeleteCategory() {
-    if (selectedCategoryId === "new") {
-      return;
-    }
-    if (!window.confirm("Удалить категорию карты?")) {
-      return;
-    }
-
+    if (selectedCategoryId === "new" || !window.confirm("Удалить категорию карты?")) return;
     await runMutation(`category-delete-${selectedCategoryId}`, async () => {
       await deleteAdminMapCategory(selectedCategoryId);
     }, async () => {
-      resetCategoryEditor();
-      if (pointCategoryFilter !== "all" && pointCategoryFilter === selectedCategoryId) {
-        setPointCategoryFilter("all");
-      }
+      setSelectedCategoryId("new"); setCategoryForm(createEmptyCategoryForm());
+      if (typeof pointCategoryFilter === "number" && pointCategoryFilter === selectedCategoryId) setPointCategoryFilter("all");
       await Promise.all([loadCategories(), loadPoints()]);
     });
   }
@@ -612,26 +588,17 @@ export function AdminPage() {
   async function handleToggleUserMarker(marker: AdminUserMapMarker) {
     await runMutation(`user-marker-toggle-${marker.id}`, async () => {
       await updateAdminUserMapMarker(marker.id, { is_active: !marker.is_active });
-    }, async () => {
-      await Promise.all([loadUserMarkers(), loadOverview()]);
-    });
+    }, async () => { await Promise.all([loadUserMarkers(), loadOverview()]); });
   }
 
   async function handleDeleteUserMarker(marker: AdminUserMapMarker) {
-    if (!window.confirm("Удалить пользовательскую метку вместе с комментариями?")) {
-      return;
-    }
-
+    if (!window.confirm("Удалить пользовательскую метку?")) return;
     await runMutation(`user-marker-delete-${marker.id}`, async () => {
       await deleteAdminUserMapMarker(marker.id);
-    }, async () => {
-      await Promise.all([loadUserMarkers(), loadOverview()]);
-    });
+    }, async () => { await Promise.all([loadUserMarkers(), loadOverview()]); });
   }
 
-  const hasMorePosts = Boolean(posts && posts.count > postsPage * POST_PAGE_SIZE);
-  const hasMoreUsers = Boolean(users && users.count > usersPage * USER_PAGE_SIZE);
-
+  // ── Auth guards ───────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
       <AppShell title="Админка">
@@ -639,11 +606,7 @@ export function AdminPage() {
           title="Нужен вход"
           description="Админка доступна только после авторизации."
           action={
-            <button
-              type="button"
-              className="button button-primary"
-              onClick={() => openAuthModal({ returnTo: "/admin/" })}
-            >
+            <button type="button" className="button button-primary" onClick={() => openAuthModal({ returnTo: "/admin/" })}>
               Войти
             </button>
           }
@@ -655,753 +618,481 @@ export function AdminPage() {
   if (!canAccessAdmin) {
     return (
       <AppShell title="Админка">
-        <EmptyState
-          title="Недостаточно прав"
-          description="Этот раздел открыт только для админов."
-        />
+        <EmptyState title="Недостаточно прав" description="Этот раздел открыт только для админов." />
       </AppShell>
     );
   }
+
+  const allPostsSelected = Boolean(posts?.results.length && posts.results.every((p) => selectedPostIds.has(p.id)));
 
   return (
     <AppShell
       title="Админка"
       actions={
-        <button
-          type="button"
-          className="button button-muted"
-          onClick={() => {
-            void loadOverview();
-            if (activeTab === "posts") {
-              void loadPosts(postsPage);
-            }
-            if (activeTab === "map") {
-              void loadCategories();
-              void loadPoints();
-              void loadUserMarkers();
-            }
-            if (activeTab === "users") {
-              void loadUsers(usersPage);
-            }
-          }}
-        >
-          Обновить
-        </button>
+        <div className="admin-quick-actions">
+          <Link href="/posts/new" className="button button-muted button-inline">
+            <Plus size={14} />
+            <span>Новый пост</span>
+          </Link>
+          <button
+            type="button"
+            className="button button-muted button-inline"
+            onClick={() => { setActiveTab("map"); setMapMode("create"); resetPointEditor(); }}
+          >
+            <Plus size={14} />
+            <span>Новая точка</span>
+          </button>
+          <button
+            type="button"
+            className="button button-ghost button-inline"
+            onClick={() => {
+              void loadOverview();
+              if (activeTab === "posts") void loadPosts(postsPage);
+              if (activeTab === "map") { void loadCategories(); void loadPoints(); void loadUserMarkers(); }
+              if (activeTab === "users") void loadUsers(usersPage);
+            }}
+          >
+            Обновить
+          </button>
+        </div>
       }
     >
-      <section className="panel profile-panel">
-        <div className="section-row">
-          <div>
-            <p className="eyebrow">Admin</p>
-            <h2 className="admin-heading">Управление контентом, точками и пользователями</h2>
-          </div>
-          <div className="admin-badges">
-            <span className="admin-status is-positive">
-              <Shield className="button-icon" />
-              <span>Доступ подтверждён</span>
-            </span>
-          </div>
+      {/* ── Stats bar ─────────────────────────────────────────────────────── */}
+      {overview ? (
+        <div className="admin-stats-bar">
+          <span className="admin-stats-item">
+            <Newspaper size={13} />
+            <span>Посты: <strong>{overview.posts_count}</strong></span>
+            <span className="admin-stats-sub">{overview.published_posts_count} опубл · {overview.draft_posts_count} черн</span>
+          </span>
+          <span className="admin-stats-sep">|</span>
+          <span className="admin-stats-item">
+            <MapPinned size={13} />
+            <span>Точки: <strong>{overview.map_points_count}</strong></span>
+            <span className="admin-stats-sub">{overview.active_map_points_count} акт · {overview.hidden_map_points_count} скрыты</span>
+          </span>
+          <span className="admin-stats-sep">|</span>
+          <span className="admin-stats-item">
+            <UsersRound size={13} />
+            <span>Пользователи: <strong>{overview.users_count}</strong></span>
+            <span className="admin-stats-sub">{overview.admins_count} адм · {overview.banned_users_count} бан</span>
+          </span>
         </div>
+      ) : overviewLoading ? (
+        <div className="admin-stats-bar is-loading"><LoadingBlock label="" /></div>
+      ) : null}
 
-        {globalError ? (
-          <div className="form-banner is-error">
-            <strong>Ошибка</strong>
-            <p>{globalError}</p>
-          </div>
-        ) : null}
-
-        {overviewLoading && !overview ? <LoadingBlock label="Загружаю админку..." /> : null}
-        {overviewError ? (
-          <div className="form-banner is-error">
-            <strong>Не удалось загрузить админку</strong>
-            <p>{overviewError}</p>
-          </div>
-        ) : null}
-
-        {overview ? (
-          <div className="admin-overview-grid">
-            <div className="stat-card admin-stat-card">
-              <span className="admin-stat-icon">
-                <Newspaper className="nav-icon" />
-              </span>
-              <div className="admin-stat-copy">
-                <strong>{compactCount(overview.posts_count)}</strong>
-                <span>Посты</span>
-                <small>
-                  {overview.published_posts_count} опубликовано, {overview.draft_posts_count} черновиков
-                </small>
-              </div>
-            </div>
-            <div className="stat-card admin-stat-card">
-              <span className="admin-stat-icon">
-                <MapPinned className="nav-icon" />
-              </span>
-              <div className="admin-stat-copy">
-                <strong>{compactCount(overview.map_points_count)}</strong>
-                <span>Точки карты</span>
-                <small>
-                  {overview.active_map_points_count} активных, {overview.hidden_map_points_count} скрытых
-                </small>
-              </div>
-            </div>
-            <div className="stat-card admin-stat-card admin-stat-card-user-markers">
-              <span className="admin-stat-icon">
-                <MapPinned className="nav-icon" />
-              </span>
-              <div className="admin-stat-copy">
-                <strong>{compactCount(overview.user_markers_count ?? 0)}</strong>
-                <span>Метки людей</span>
-                <small>
-                  {overview.active_user_markers_count ?? 0} показываются, {overview.hidden_user_markers_count ?? 0} скрыты
-                </small>
-              </div>
-            </div>
-            <div className="stat-card admin-stat-card">
-              <span className="admin-stat-icon">
-                <UsersRound className="nav-icon" />
-              </span>
-              <div className="admin-stat-copy">
-                <strong>{compactCount(overview.users_count)}</strong>
-                <span>Пользователи</span>
-                <small>
-                  {overview.admins_count} админов, {overview.banned_users_count} заблокировано
-                </small>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </section>
+      {globalError ? (
+        <div className="form-banner is-error">
+          <strong>Ошибка:</strong> {globalError}
+        </div>
+      ) : null}
 
       <section className="panel profile-panel">
+        {/* ── Tabs ────────────────────────────────────────────────────────── */}
         <div className="admin-tabs">
-          <button
-            type="button"
-            className={`chip admin-tab-button ${activeTab === "posts" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("posts")}
-          >
-            <FileText className="button-icon" />
-            <span>Посты</span>
-          </button>
-          <button
-            type="button"
-            className={`chip admin-tab-button ${activeTab === "map" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("map")}
-          >
-            <MapPinned className="button-icon" />
-            <span>Точки карты</span>
-          </button>
-          <button
-            type="button"
-            className={`chip admin-tab-button ${activeTab === "users" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("users")}
-          >
-            <UsersRound className="button-icon" />
-            <span>Пользователи</span>
-          </button>
+          {(["posts", "map", "users"] as AdminTab[]).map((tab) => {
+            const icons = { posts: <FileText size={14} />, map: <MapPinned size={14} />, users: <UsersRound size={14} /> };
+            const labels = { posts: "Посты", map: "Точки карты", users: "Пользователи" };
+            return (
+              <button
+                key={tab}
+                type="button"
+                className={`chip admin-tab-button ${activeTab === tab ? "is-active" : ""}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {icons[tab]}
+                <span>{labels[tab]}</span>
+              </button>
+            );
+          })}
         </div>
 
+        {/* ══════════ POSTS TAB ══════════ */}
         {activeTab === "posts" ? (
           <div className="profile-panel">
-            <form
-              className="filters-toolbar"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void loadPosts(1);
-              }}
-            >
-              <div className="filters-toolbar-head">
-                <div>
-                  <h3>Все публикации</h3>
-                  <p className="muted">
-                    Быстрая модерация, публикация черновиков и удаление постов.
-                  </p>
-                </div>
-                <span className="filters-status">
-                  {posts ? `${posts.count} записей` : "Без данных"}
-                </span>
+            {/* Inline filters */}
+            <div className="admin-filters-row">
+              <input
+                className="admin-filter-search"
+                value={postSearch}
+                onChange={(e) => setPostSearch(e.target.value)}
+                placeholder="Поиск по заголовку, тексту, автору"
+              />
+              <select
+                className="admin-filter-select"
+                value={postKind}
+                onChange={(e) => setPostKind(e.target.value as "all" | PostListItem["kind"])}
+              >
+                <option value="all">Все типы</option>
+                <option value="news">Новости</option>
+                <option value="story">Истории</option>
+                <option value="event">События</option>
+              </select>
+              <select
+                className="admin-filter-select"
+                value={postPublicationStatus}
+                onChange={(e) => setPostPublicationStatus(e.target.value as PublicationStatus)}
+              >
+                <option value="all">Все статусы</option>
+                <option value="published">Опубликованные</option>
+                <option value="draft">Черновики</option>
+              </select>
+              <select
+                className="admin-filter-select"
+                value={postOrdering}
+                onChange={(e) => setPostOrdering(e.target.value as PostOrdering)}
+              >
+                <option value="recent">По дате</option>
+                <option value="popular">По популярности</option>
+                <option value="recommended">По рекомендациям</option>
+              </select>
+              {posts ? <span className="admin-filter-count">{posts.count} постов</span> : null}
+            </div>
+
+            {/* Bulk action bar */}
+            {selectedPostIds.size > 0 ? (
+              <div className="admin-bulk-bar">
+                <span className="admin-bulk-count">Выбрано: {selectedPostIds.size}</span>
+                <button type="button" className="button button-sm button-muted" disabled={!!mutationKey} onClick={() => void handleBulkAction("publish")}>Опубликовать</button>
+                <button type="button" className="button button-sm button-muted" disabled={!!mutationKey} onClick={() => void handleBulkAction("unpublish")}>В черновик</button>
+                <button type="button" className="button button-sm button-danger" disabled={!!mutationKey} onClick={() => void handleBulkAction("delete")}>Удалить</button>
+                <button type="button" className="button button-sm button-ghost" onClick={() => setSelectedPostIds(new Set())}>Снять выделение</button>
               </div>
-              <div className="filters-toolbar-grid filters-toolbar-grid-events">
-                <label className="field filter-field">
-                  <span className="filter-label">Поиск</span>
-                  <input
-                    value={postSearch}
-                    onChange={(event) => setPostSearch(event.target.value)}
-                    placeholder="Заголовок, текст, автор"
-                  />
-                </label>
-                <label className="field filter-field">
-                  <span className="filter-label">Тип</span>
-                  <select
-                    value={postKind}
-                    onChange={(event) =>
-                      setPostKind(event.target.value as "all" | PostListItem["kind"])
-                    }
-                  >
-                    <option value="all">Все типы</option>
-                    <option value="news">Новости</option>
-                    <option value="story">Истории</option>
-                    <option value="event">События</option>
-                  </select>
-                </label>
-                <label className="field filter-field">
-                  <span className="filter-label">Статус</span>
-                  <select
-                    value={postPublicationStatus}
-                    onChange={(event) =>
-                      setPostPublicationStatus(event.target.value as PublicationStatus)
-                    }
-                  >
-                    <option value="all">Все публикации</option>
-                    <option value="published">Опубликованные</option>
-                    <option value="draft">Черновики</option>
-                  </select>
-                </label>
-                <div className="filter-submit-wrap">
-                  <button type="submit" className="button button-primary filter-submit">
-                    Показать
-                  </button>
-                </div>
-              </div>
-            </form>
+            ) : null}
 
             {postsLoading && !posts ? <LoadingBlock label="Загружаю посты..." /> : null}
             {postsError ? (
-              <EmptyState
-                title="Не удалось загрузить посты"
-                description={postsError}
-                action={
-                  <button type="button" className="button button-primary" onClick={() => void loadPosts(1)}>
-                    Повторить
-                  </button>
-                }
+              <EmptyState title="Не удалось загрузить посты" description={postsError}
+                action={<button type="button" className="button button-primary" onClick={() => void loadPosts(1)}>Повторить</button>}
               />
             ) : null}
 
-            <div className="admin-stack">
-              {posts?.results.map((post) => (
-                <article key={post.id} className="panel admin-card">
-                  <div className="admin-card-head">
-                    <div className="admin-card-copy">
-                      <div className="section-row">
-                        <h3>{post.title || "Без заголовка"}</h3>
-                        <div className="admin-badges">
-                          <span
-                            className={`admin-status ${
-                              post.is_published ? "is-positive" : "is-warning"
-                            }`}
-                          >
-                            {post.is_published ? "Опубликован" : "Черновик"}
-                          </span>
-                          <span className="chip">{getKindLabel(post.kind)}</span>
+            {posts?.results.length ? (
+              <>
+                {/* Select all */}
+                <label className="admin-select-all">
+                  <input type="checkbox" checked={allPostsSelected} onChange={toggleAllPosts} />
+                  <span>Выбрать все на странице</span>
+                </label>
+
+                <div className="admin-stack">
+                  {posts.results.map((post) => (
+                    <article key={post.id} className="admin-post-card">
+                      <label className="admin-post-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedPostIds.has(post.id)}
+                          onChange={() => togglePostSelection(post.id)}
+                        />
+                      </label>
+                      <div className="admin-post-body">
+                        <div className="admin-post-head">
+                          <PostStatusBadge post={post} />
+                          <span className="chip admin-kind-chip">{getKindLabel(post.kind)}</span>
+                          <span className="admin-post-title">{post.title || "Без заголовка"}</span>
+                        </div>
+                        <div className="admin-post-meta">
+                          {post.author.name} · {formatDateTime(post.published_at)}
+                        </div>
+                        <div className="admin-post-metrics">
+                          <span>👁 {compactCount(post.view_count)}</span>
+                          <span>❤️ {compactCount(post.likes_count)}</span>
+                          <span>💬 {compactCount(post.comments_count)}</span>
                         </div>
                       </div>
-                      <p className="muted">
-                        {post.author.name} · {formatDateTime(post.published_at)}
-                      </p>
-                    </div>
+                      <div className="admin-post-actions">
+                        <Link href={buildPostPath(post)} className="button button-muted button-inline button-sm">Открыть</Link>
+                        <Link href={buildPostEditPath(post.id)} className="button button-muted button-inline button-sm">Изменить</Link>
+                        <OverflowMenu
+                          items={[
+                            {
+                              label: post.is_published ? "В черновик" : "Опубликовать",
+                              disabled: mutationKey === `post-publish-${post.id}`,
+                              onClick: () => void handleTogglePublished(post),
+                            },
+                            {
+                              label: "Удалить",
+                              danger: true,
+                              disabled: mutationKey === `post-delete-${post.id}`,
+                              onClick: () => void handleDeletePost(post.id),
+                            },
+                          ]}
+                        />
+                      </div>
+                    </article>
+                  ))}
+                </div>
 
-                    <div className="post-actions">
-                      <Link
-                        href={buildPostPath(post)}
-                        className="button button-muted button-inline"
-                      >
-                        Открыть
-                      </Link>
-                      <Link
-                        href={buildPostEditPath(post.id)}
-                        className="button button-muted button-inline"
-                      >
-                        Редактировать
-                      </Link>
-                      <button
-                        type="button"
-                        className="button button-ghost button-inline"
-                        disabled={mutationKey === `post-publish-${post.id}`}
-                        onClick={() => void handleTogglePublished(post)}
-                      >
-                        {post.is_published ? "В черновик" : "Опубликовать"}
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-danger button-inline"
-                        disabled={mutationKey === `post-delete-${post.id}`}
-                        onClick={() => void handleDeletePost(post.id)}
-                      >
-                        <Trash2 className="button-icon" />
-                        <span>Удалить</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <p className="admin-card-text">{post.preview_text || post.body}</p>
-
-                  <div className="metrics-row">
-                    <span className="chip">Просмотры: {compactCount(post.view_count)}</span>
-                    <span className="chip">Лайки: {compactCount(post.likes_count)}</span>
-                    <span className="chip">Комментарии: {compactCount(post.comments_count)}</span>
-                    <span className="chip">Избранное: {compactCount(post.favorites_count)}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {posts && posts.count > 0 ? (
-              <div className="pagination-row">
-                <button
-                  type="button"
-                  className="button button-muted"
-                  disabled={postsPage === 1 || postsLoading}
-                  onClick={() => void loadPosts(postsPage - 1)}
-                >
-                  Назад
-                </button>
-                <span className="pagination-label">Страница {postsPage}</span>
-                <button
-                  type="button"
-                  className="button button-muted"
-                  disabled={!hasMorePosts || postsLoading}
-                  onClick={() => void loadPosts(postsPage + 1)}
-                >
-                  Дальше
-                </button>
-              </div>
+                <Pagination page={postsPage} total={posts.count} pageSize={POST_PAGE_SIZE} loading={postsLoading} onPage={(p) => void loadPosts(p)} />
+              </>
+            ) : (!postsLoading && !postsError) ? (
+              <EmptyState title="Посты не найдены" description="Попробуйте изменить фильтры." />
             ) : null}
           </div>
         ) : null}
+
+        {/* ══════════ USERS TAB ══════════ */}
         {activeTab === "users" ? (
           <div className="profile-panel">
-            <form
-              className="filters-toolbar"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void loadUsers(1);
-              }}
-            >
-              <div className="filters-toolbar-head">
-                <div>
-                  <h3>Аккаунты пользователей</h3>
-                  <p className="muted">Смена ролей, предупреждения и блокировки.</p>
-                </div>
-                <span className="filters-status">
-                  {users ? `${users.count} аккаунтов` : "Без данных"}
-                </span>
-              </div>
-              <div className="filters-toolbar-grid filters-toolbar-grid-events">
-                <label className="field filter-field">
-                  <span className="filter-label">Поиск</span>
-                  <input
-                    value={userSearch}
-                    onChange={(event) => setUserSearch(event.target.value)}
-                    placeholder="Имя, логин, email, телефон"
-                  />
-                </label>
-                <label className="field filter-field">
-                  <span className="filter-label">Роль</span>
-                  <select
-                    value={userRole}
-                    onChange={(event) => setUserRole(event.target.value as "all" | UserRole)}
-                  >
-                    <option value="all">Все роли</option>
-                    <option value="admin">Админы</option>
-                    <option value="support">Техподдержка</option>
-                    <option value="moderator">Модераторы</option>
-                    <option value="user">Пользователи</option>
-                  </select>
-                </label>
-                <label className="field filter-field">
-                  <span className="filter-label">Статус</span>
-                  <select
-                    value={userStatus}
-                    onChange={(event) =>
-                      setUserStatus(event.target.value as UserStatusFilter)
-                    }
-                  >
-                    <option value="all">Все статусы</option>
-                    <option value="active">Активные</option>
-                    <option value="banned">Заблокированные</option>
-                    <option value="admin">С доступом к админке</option>
-                  </select>
-                </label>
-                <div className="filter-submit-wrap">
-                  <button type="submit" className="button button-primary filter-submit">
-                    Показать
-                  </button>
-                </div>
-              </div>
-            </form>
+            <div className="admin-filters-row">
+              <input
+                className="admin-filter-search"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                placeholder="Имя, логин, email"
+              />
+              <select
+                className="admin-filter-select"
+                value={userRole}
+                onChange={(e) => setUserRole(e.target.value as "all" | UserRole)}
+              >
+                <option value="all">Все роли</option>
+                <option value="admin">Админы</option>
+                <option value="support">Техподдержка</option>
+                <option value="moderator">Модераторы</option>
+                <option value="user">Пользователи</option>
+              </select>
+              <select
+                className="admin-filter-select"
+                value={userStatus}
+                onChange={(e) => setUserStatus(e.target.value as UserStatusFilter)}
+              >
+                <option value="all">Все статусы</option>
+                <option value="active">Активные</option>
+                <option value="banned">Заблокированные</option>
+                <option value="admin">С доступом к админке</option>
+              </select>
+              {users ? <span className="admin-filter-count">{users.count} аккаунтов</span> : null}
+            </div>
 
             {usersLoading && !users ? <LoadingBlock label="Загружаю пользователей..." /> : null}
             {usersError ? (
-              <EmptyState
-                title="Не удалось загрузить пользователей"
-                description={usersError}
-                action={
-                  <button type="button" className="button button-primary" onClick={() => void loadUsers(1)}>
-                    Повторить
-                  </button>
-                }
+              <EmptyState title="Не удалось загрузить пользователей" description={usersError}
+                action={<button type="button" className="button button-primary" onClick={() => void loadUsers(1)}>Повторить</button>}
               />
             ) : null}
 
-            <div className="admin-stack">
-              {users?.results.map((adminUser) => (
-                <article key={adminUser.id} className="panel admin-card">
-                  <div className="admin-card-head">
-                    <div className="admin-card-copy">
-                      <div className="section-row">
-                        <h3>{adminUser.name || adminUser.username}</h3>
-                        <div className="admin-badges">
-                          <span
-                            className={`admin-status ${
-                              adminUser.is_banned ? "is-danger" : "is-positive"
-                            }`}
-                          >
-                            {adminUser.is_banned ? "Заблокирован" : "Активен"}
-                          </span>
-                          {adminUser.can_access_admin ? (
-                            <span className="admin-status is-warning">
-                              <ShieldAlert className="button-icon" />
-                              <span>Админ-доступ</span>
-                            </span>
-                          ) : null}
-                          {adminUser.can_access_support ? (
-                            <span className="admin-status is-warning">
-                              <ShieldAlert className="button-icon" />
-                              <span>Техподдержка</span>
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <p className="muted">
-                        @{adminUser.username} · {adminUser.email}
-                      </p>
-                      <p className="muted">
-                        {adminUser.city || "Город не указан"} · предупреждений:{" "}
-                        {adminUser.warning_count}
-                      </p>
-                    </div>
-                    <div className="admin-user-controls">
-                      <label className="field field-inline">
-                        <span className="filter-label">Роль</span>
-                        <select
-                          value={adminUser.role}
-                          disabled={mutationKey === `user-role-${adminUser.id}`}
-                          onChange={(event) =>
-                            void handleUserRoleChange(
-                              adminUser,
-                              event.target.value as UserRole,
-                            )
-                          }
-                        >
-                          <option value="admin">Админ</option>
-                          <option value="support">Техподдержка</option>
-                          <option value="moderator">Модератор</option>
-                          <option value="user">Пользователь</option>
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="metrics-row">
-                    <span className="chip">{getRoleLabel(adminUser.role)}</span>
-                    <span className="chip">
-                      Зарегистрирован: {formatDateTime(adminUser.date_joined)}
-                    </span>
-                    {adminUser.last_login ? (
-                      <span className="chip">
-                        Последний вход: {formatDateTime(adminUser.last_login)}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="post-actions">
-                    <button
-                      type="button"
-                      className="button button-muted button-inline"
-                      disabled={mutationKey === `user-warn-${adminUser.id}`}
-                      onClick={() => void handleUserModeration(adminUser, "warn")}
-                    >
-                      Предупредить
-                    </button>
-                    {adminUser.is_banned ? (
-                      <button
-                        type="button"
-                        className="button button-ghost button-inline"
-                        disabled={mutationKey === `user-unban-${adminUser.id}`}
-                        onClick={() => void handleUserModeration(adminUser, "unban")}
-                      >
-                        Разблокировать
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="button button-danger button-inline"
-                        disabled={mutationKey === `user-ban-${adminUser.id}`}
-                        onClick={() => void handleUserModeration(adminUser, "ban")}
-                      >
-                        Заблокировать
-                      </button>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {users && users.count > 0 ? (
-              <div className="pagination-row">
-                <button
-                  type="button"
-                  className="button button-muted"
-                  disabled={usersPage === 1 || usersLoading}
-                  onClick={() => void loadUsers(usersPage - 1)}
-                >
-                  Назад
-                </button>
-                <span className="pagination-label">Страница {usersPage}</span>
-                <button
-                  type="button"
-                  className="button button-muted"
-                  disabled={!hasMoreUsers || usersLoading}
-                  onClick={() => void loadUsers(usersPage + 1)}
-                >
-                  Дальше
-                </button>
-              </div>
+            {users?.results.length ? (
+              <>
+                <div className="admin-users-table-wrap">
+                  <table className="admin-users-table">
+                    <thead>
+                      <tr>
+                        <th>Пользователь</th>
+                        <th>Роль</th>
+                        <th>Статус</th>
+                        <th>Зарегистрирован</th>
+                        <th>Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.results.map((adminUser) => (
+                        <tr key={adminUser.id}>
+                          <td>
+                            <div className="admin-user-name">{adminUser.name || adminUser.username}</div>
+                            <div className="admin-user-sub">@{adminUser.username} · {adminUser.email}</div>
+                            {adminUser.warning_count > 0 ? (
+                              <div className="admin-user-sub">⚠️ {adminUser.warning_count} предупреждений</div>
+                            ) : null}
+                          </td>
+                          <td>
+                            <select
+                              className="admin-role-select"
+                              value={adminUser.role}
+                              disabled={mutationKey === `user-role-${adminUser.id}`}
+                              onChange={(e) => void handleUserRoleChange(adminUser, e.target.value as UserRole)}
+                            >
+                              <option value="admin">Админ</option>
+                              <option value="support">Техподдержка</option>
+                              <option value="moderator">Модератор</option>
+                              <option value="user">Пользователь</option>
+                            </select>
+                          </td>
+                          <td>
+                            {adminUser.is_banned ? (
+                              <StatusBadge label="Забанен" color="red" />
+                            ) : (
+                              <StatusBadge label="Активен" color="green" />
+                            )}
+                          </td>
+                          <td className="admin-user-date">{formatDateTime(adminUser.date_joined)}</td>
+                          <td>
+                            <div className="admin-user-mod-actions">
+                              <button
+                                type="button"
+                                className="button button-ghost button-inline button-sm"
+                                title="Предупредить"
+                                disabled={mutationKey === `user-warn-${adminUser.id}`}
+                                onClick={() => void handleUserModeration(adminUser, "warn")}
+                              >
+                                ⚠️
+                              </button>
+                              {adminUser.is_banned ? (
+                                <button
+                                  type="button"
+                                  className="button button-ghost button-inline button-sm"
+                                  title="Разблокировать"
+                                  disabled={mutationKey === `user-unban-${adminUser.id}`}
+                                  onClick={() => void handleUserModeration(adminUser, "unban")}
+                                >
+                                  🔓
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="button button-danger button-inline button-sm"
+                                  title="Заблокировать"
+                                  disabled={mutationKey === `user-ban-${adminUser.id}`}
+                                  onClick={() => void handleUserModeration(adminUser, "ban")}
+                                >
+                                  🚫
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination page={usersPage} total={users.count} pageSize={USER_PAGE_SIZE} loading={usersLoading} onPage={(p) => void loadUsers(p)} />
+              </>
+            ) : (!usersLoading && !usersError) ? (
+              <EmptyState title="Пользователи не найдены" description="Проверьте фильтры." />
             ) : null}
           </div>
         ) : null}
+
+        {/* ══════════ MAP TAB ══════════ */}
         {activeTab === "map" ? (
-          <div className="admin-map-layout">
-            <section className="panel profile-panel admin-map-list-panel">
-              <form
-                className="filters-toolbar admin-map-filters"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void Promise.all([loadPoints(), loadUserMarkers()]);
-                }}
+          <div className="profile-panel">
+            {/* Mode switcher */}
+            <div className="admin-map-mode-bar">
+              <button
+                type="button"
+                className={`chip admin-map-mode-btn ${mapMode === "list" ? "is-active" : ""}`}
+                onClick={() => setMapMode("list")}
               >
-                <div className="filters-toolbar-head">
-                  <div>
-                    <h3>Точки карты</h3>
-                    <p className="muted">Создание, редактирование и скрытие точек.</p>
-                  </div>
+                Список точек
+              </button>
+              <button
+                type="button"
+                className={`chip admin-map-mode-btn ${mapMode === "create" ? "is-active" : ""}`}
+                onClick={() => { setMapMode("create"); if (selectedPointId !== "new") return; resetPointEditor(); }}
+              >
+                {selectedPointId === "new" ? "Новая точка" : "Редактор точки"}
+              </button>
+            </div>
+
+            {/* LIST MODE */}
+            {mapMode === "list" ? (
+              <>
+                <div className="admin-filters-row">
+                  <input
+                    className="admin-filter-search"
+                    value={pointSearch}
+                    onChange={(e) => setPointSearch(e.target.value)}
+                    placeholder="Slug, название, адрес"
+                    onBlur={() => void Promise.all([loadPoints(), loadUserMarkers()])}
+                  />
+                  <select
+                    className="admin-filter-select"
+                    value={pointStatus}
+                    onChange={(e) => { setPointStatus(e.target.value as PointStatusFilter); void Promise.all([loadPoints(), loadUserMarkers()]); }}
+                  >
+                    <option value="all">Все точки</option>
+                    <option value="active">Активные</option>
+                    <option value="hidden">Скрытые</option>
+                  </select>
+                  <select
+                    className="admin-filter-select"
+                    value={pointCategoryFilter === "all" ? "all" : String(pointCategoryFilter)}
+                    onChange={(e) => { setPointCategoryFilter(e.target.value === "all" ? "all" : Number(e.target.value)); void loadPoints(); }}
+                  >
+                    <option value="all">Все категории</option>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  </select>
                   <button
                     type="button"
-                    className="button button-primary"
-                    onClick={resetPointEditor}
+                    className="button button-muted button-sm"
+                    onClick={() => { resetPointEditor(); setMapMode("create"); }}
                   >
-                    Новая точка
+                    <Plus size={13} /> Новая точка
                   </button>
                 </div>
-                <div className="filters-toolbar-grid filters-toolbar-grid-admin-map">
-                  <label className="field filter-field">
-                    <span className="filter-label">Поиск</span>
-                    <input
-                      value={pointSearch}
-                      onChange={(event) => setPointSearch(event.target.value)}
-                      placeholder="Slug, название, адрес"
-                    />
-                  </label>
-                  <label className="field filter-field">
-                    <span className="filter-label">Статус</span>
-                    <select
-                      value={pointStatus}
-                      onChange={(event) =>
-                        setPointStatus(event.target.value as PointStatusFilter)
-                      }
+
+                {pointsLoading && !points ? <LoadingBlock label="Загружаю точки..." /> : null}
+                {pointsError ? (
+                  <EmptyState title="Не удалось загрузить точки" description={pointsError}
+                    action={<button type="button" className="button button-primary" onClick={() => void loadPoints()}>Повторить</button>}
+                  />
+                ) : null}
+
+                <div className="admin-point-list">
+                  {points?.results.map((point) => (
+                    <button
+                      key={point.id}
+                      type="button"
+                      className="point-row admin-point-row"
+                      onClick={() => handlePointSelection(point)}
                     >
-                      <option value="all">Все точки</option>
-                      <option value="active">Активные</option>
-                      <option value="hidden">Скрытые</option>
-                    </select>
-                  </label>
-                  <label className="field filter-field">
-                    <span className="filter-label">Категория</span>
-                    <select
-                      value={pointCategoryFilter === "all" ? "all" : String(pointCategoryFilter)}
-                      onChange={(event) =>
-                        setPointCategoryFilter(
-                          event.target.value === "all"
-                            ? "all"
-                            : Number(event.target.value),
-                        )
-                      }
-                    >
-                      <option value="all">Все категории</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="filter-submit-wrap">
-                    <button type="submit" className="button button-primary filter-submit">
-                      Показать
+                      <div className="admin-point-row-head">
+                        <strong>{point.title}</strong>
+                        {point.is_active
+                          ? <StatusBadge label="Активна" color="green" />
+                          : <StatusBadge label="Скрыта" color="yellow" />}
+                      </div>
+                      <p className="muted">{point.address || point.slug}</p>
+                      <div className="map-category-row">
+                        {point.categories.map((cat) => (
+                          <span key={cat.id} className="map-category-chip">
+                            <span className="map-category-chip-dot" style={{ backgroundColor: cat.color }} />
+                            <span>{cat.title}</span>
+                          </span>
+                        ))}
+                      </div>
                     </button>
-                  </div>
+                  ))}
                 </div>
-              </form>
 
-              {pointsLoading && !points ? <LoadingBlock label="Загружаю точки..." /> : null}
-              {pointsError ? (
-                <EmptyState
-                  title="Не удалось загрузить точки"
-                  description={pointsError}
-                  action={
-                    <button type="button" className="button button-primary" onClick={() => void loadPoints()}>
-                      Повторить
-                    </button>
-                  }
-                />
-              ) : null}
-
-              <div className="admin-point-list">
-                {points?.results.map((point) => (
-                  <button
-                    key={point.id}
-                    type="button"
-                    className={`point-row admin-point-row ${
-                      selectedPointId === point.id ? "is-active" : ""
-                    }`}
-                    onClick={() => handlePointSelection(point)}
-                  >
-                    <div className="section-row">
-                      <strong>{point.title}</strong>
-                      <span
-                        className={`admin-status ${
-                          point.is_active ? "is-positive" : "is-warning"
-                        }`}
-                      >
-                        {point.is_active ? "Активна" : "Скрыта"}
-                      </span>
-                    </div>
-                    <p className="muted">{point.address || point.slug}</p>
-                    <div className="map-category-row">
-                      <span className="map-category-chip">
-                        <span
-                          className="map-category-chip-dot"
-                          style={{ backgroundColor: point.marker_color }}
-                        />
-                        <span>{point.marker_color}</span>
-                      </span>
-                      {point.categories.map((category) => (
-                        <span key={category.id} className="map-category-chip">
-                          <span
-                            className="map-category-chip-dot"
-                            style={{ backgroundColor: category.color }}
-                          />
-                          <span>{category.title}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="section-row admin-subsection-row">
-                <div>
-                  <h3>Пользовательские метки</h3>
-                  <p className="muted">
-                    Модерация мест, которые пользователи добавили с карты.
-                  </p>
+                {/* User markers section */}
+                <div className="admin-subsection-head">
+                  <h3>Метки пользователей</h3>
+                  <span className="admin-filter-count">{userMarkers?.count ?? 0}</span>
                 </div>
-                <span className="filters-status">
-                  {userMarkers ? `${userMarkers.count} меток` : "Без данных"}
-                </span>
-              </div>
 
-              {userMarkersLoading && !userMarkers ? (
-                <LoadingBlock label="Загружаю пользовательские метки..." />
-              ) : null}
-              {userMarkersError ? (
-                <EmptyState
-                  title="Не удалось загрузить пользовательские метки"
-                  description={userMarkersError}
-                  action={
-                    <button type="button" className="button button-primary" onClick={() => void loadUserMarkers()}>
-                      Повторить
-                    </button>
-                  }
-                />
-              ) : null}
+                {userMarkersLoading && !userMarkers ? <LoadingBlock label="Загружаю метки..." /> : null}
+                {userMarkersError ? (
+                  <EmptyState title="Не удалось загрузить метки" description={userMarkersError}
+                    action={<button type="button" className="button button-primary" onClick={() => void loadUserMarkers()}>Повторить</button>}
+                  />
+                ) : null}
 
-              <div className="admin-point-list">
-                {userMarkers?.results.map((marker) => {
-                  const coverMedia = marker.media[0];
-
-                  return (
+                <div className="admin-point-list">
+                  {userMarkers?.results.map((marker) => (
                     <article key={marker.id} className="point-row admin-user-marker-row">
                       <div className="admin-marker-row">
-                        {coverMedia ? (
-                          <a
-                            href={coverMedia.media_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="admin-marker-thumb"
-                            aria-label="Открыть медиа пользовательской метки"
-                          >
-                            {coverMedia.media_type === "video" ? (
-                              <span className="admin-marker-video">
-                                <Video className="nav-icon" />
-                                <span>Видео</span>
-                              </span>
-                            ) : (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={coverMedia.media_url} alt={marker.title} />
-                            )}
-                          </a>
-                        ) : (
-                          <span className="admin-marker-thumb is-empty" aria-hidden="true">
-                            <MapPinned className="nav-icon" />
-                          </span>
-                        )}
-
                         <div className="admin-marker-body">
-                          <div className="section-row">
+                          <div className="admin-point-row-head">
                             <strong>{marker.title}</strong>
-                            <span
-                              className={`admin-status ${
-                                marker.is_active && marker.is_public
-                                  ? "is-positive"
-                                  : "is-warning"
-                              }`}
-                            >
-                              {marker.is_active && marker.is_public ? (
-                                <Eye className="button-icon" />
-                              ) : (
-                                <EyeOff className="button-icon" />
-                              )}
-                              <span>
-                                {marker.is_active && marker.is_public
-                                  ? "Показывается"
-                                  : "Скрыта"}
-                              </span>
-                            </span>
+                            {marker.is_active && marker.is_public
+                              ? <StatusBadge label="Видна" color="green" />
+                              : <StatusBadge label="Скрыта" color="yellow" />}
                           </div>
                           <p className="muted">
-                            {marker.author?.name || marker.author?.username || "Пользователь"} ·{" "}
-                            {marker.latitude.toFixed(6)}, {marker.longitude.toFixed(6)}
+                            {marker.author?.name || marker.author?.username || "—"} ·{" "}
+                            {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
                           </p>
-                          <p className="admin-card-text">{marker.description}</p>
-                          <div className="metrics-row admin-marker-metrics">
-                            <span className="chip">
-                              <MessageSquare className="button-icon" />
-                              <span>{marker.comments_count} комментариев</span>
-                            </span>
-                            <span className="chip">
-                              <ShieldAlert className="button-icon" />
-                              <span>{marker.reports_count} жалоб</span>
-                            </span>
-                            <span className="chip">
-                              <Images className="button-icon" />
-                              <span>{marker.media.length} медиа</span>
-                            </span>
+                          <div className="admin-post-metrics">
+                            <span>💬 {marker.comments_count}</span>
+                            <span>🚨 {marker.reports_count}</span>
+                            <span>🖼 {marker.media.length}</span>
                           </div>
-                          <div className="post-actions">
+                          <div className="admin-post-actions" style={{ marginTop: 6 }}>
                             <button
                               type="button"
-                              className="button button-muted button-inline"
+                              className="button button-muted button-inline button-sm"
                               disabled={mutationKey === `user-marker-toggle-${marker.id}`}
                               onClick={() => void handleToggleUserMarker(marker)}
                             >
@@ -1409,7 +1100,7 @@ export function AdminPage() {
                             </button>
                             <button
                               type="button"
-                              className="button button-danger button-inline"
+                              className="button button-danger button-inline button-sm"
                               disabled={mutationKey === `user-marker-delete-${marker.id}`}
                               onClick={() => void handleDeleteUserMarker(marker)}
                             >
@@ -1419,443 +1110,186 @@ export function AdminPage() {
                         </div>
                       </div>
                     </article>
-                  );
-                })}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </>
+            ) : null}
 
-            <div className="admin-map-editor-column">
-              <section className="panel profile-panel admin-map-point-editor">
-              <div className="section-row">
-                <div>
+            {/* CREATE / EDIT MODE */}
+            {mapMode === "create" ? (
+              <div className="admin-point-editor">
+                <div className="admin-point-editor-head">
                   <h3>{selectedPointId === "new" ? "Новая точка" : "Редактор точки"}</h3>
-                  <p className="muted">
-                    Категории, координаты, изображения и статус показа на карте.
-                  </p>
-                </div>
-                {selectedPointId !== "new" ? (
-                  <button
-                    type="button"
-                    className="button button-danger"
-                    disabled={mutationKey === `point-delete-${selectedPointId}`}
-                    onClick={() => void handleDeletePoint()}
-                  >
-                    Удалить
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="two-columns">
-                <label className="field">
-                  <span>Название</span>
-                  <input
-                    value={pointForm.title}
-                    onChange={(event) =>
-                      setPointForm((current) => ({ ...current, title: event.target.value }))
-                    }
-                    placeholder="Экопункт на Покровке"
-                  />
-                </label>
-                <label className="field">
-                  <span>Slug</span>
-                  <input
-                    value={pointForm.slug}
-                    onChange={(event) =>
-                      setPointForm((current) => ({ ...current, slug: event.target.value }))
-                    }
-                    placeholder="pokrovka-ecopoint"
-                  />
-                </label>
-              </div>
-
-              <label className="field">
-                <span>Краткое описание</span>
-                <input
-                  value={pointForm.short_description}
-                  onChange={(event) =>
-                    setPointForm((current) => ({
-                      ...current,
-                      short_description: event.target.value,
-                    }))
-                  }
-                  placeholder="Что принимает точка и чем она полезна"
-                />
-              </label>
-
-              <label className="field">
-                <span>Описание</span>
-                <textarea
-                  value={pointForm.description}
-                  onChange={(event) =>
-                    setPointForm((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  placeholder="Подробности для пользователей"
-                />
-              </label>
-
-              <div className="two-columns">
-                <label className="field">
-                  <span>Адрес</span>
-                  <input
-                    value={pointForm.address}
-                    onChange={(event) =>
-                      setPointForm((current) => ({ ...current, address: event.target.value }))
-                    }
-                    placeholder="Большая Покровская, 12"
-                  />
-                </label>
-                <label className="field">
-                  <span>Часы работы</span>
-                  <input
-                    value={pointForm.working_hours}
-                    onChange={(event) =>
-                      setPointForm((current) => ({
-                        ...current,
-                        working_hours: event.target.value,
-                      }))
-                    }
-                    placeholder="пн-пт 10:00-18:00"
-                  />
-                </label>
-              </div>
-
-              <div className="two-columns">
-                <label className="field">
-                  <span>Широта</span>
-                  <input
-                    value={pointForm.latitude}
-                    onChange={(event) =>
-                      setPointForm((current) => ({ ...current, latitude: event.target.value }))
-                    }
-                    placeholder="56.320123"
-                  />
-                </label>
-                <label className="field">
-                  <span>Долгота</span>
-                  <input
-                    value={pointForm.longitude}
-                    onChange={(event) =>
-                      setPointForm((current) => ({ ...current, longitude: event.target.value }))
-                    }
-                    placeholder="44.012345"
-                  />
-                </label>
-              </div>
-
-              <div className="two-columns">
-                <label className="field">
-                  <span>Порядок сортировки</span>
-                  <input
-                    value={pointForm.sort_order}
-                    onChange={(event) =>
-                      setPointForm((current) => ({ ...current, sort_order: event.target.value }))
-                    }
-                    placeholder="0"
-                  />
-                </label>
-                <label className="field">
-                  <span>Статус</span>
-                  <select
-                    value={pointForm.is_active ? "active" : "hidden"}
-                    onChange={(event) =>
-                      setPointForm((current) => ({
-                        ...current,
-                        is_active: event.target.value === "active",
-                      }))
-                    }
-                  >
-                    <option value="active">Активна</option>
-                    <option value="hidden">Скрыта</option>
-                  </select>
-                </label>
-              </div>
-
-              <label className="field">
-                <span>Цвет точки</span>
-                <div className="admin-color-input-row">
-                  <input
-                    className="admin-color-picker"
-                    type="color"
-                    value={normalizeHexColor(pointForm.marker_color)}
-                    onChange={(event) =>
-                      setPointForm((current) => ({
-                        ...current,
-                        marker_color: event.target.value.toUpperCase(),
-                      }))
-                    }
-                    aria-label="Выбрать цвет точки"
-                  />
-                  <input
-                    value={pointForm.marker_color}
-                    onChange={(event) =>
-                      setPointForm((current) => ({
-                        ...current,
-                        marker_color: event.target.value.toUpperCase(),
-                      }))
-                    }
-                    placeholder="#2D6A4F"
-                  />
-                </div>
-              </label>
-
-              <div className="field">
-                <span>Категории</span>
-                <div className="admin-category-actions">
-                  <button
-                    type="button"
-                    className="button button-ghost button-inline"
-                    disabled={!categories.length}
-                    onClick={() => setPointCategories(categories.map((category) => category.id))}
-                  >
-                    Select All
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-ghost button-inline"
-                    disabled={!pointForm.category_ids.length}
-                    onClick={() => setPointCategories([])}
-                  >
-                    Clear
-                  </button>
-                </div>
-                <div className="admin-category-grid">
-                  {!categories.length ? (
-                    <p className="muted admin-category-empty">
-                      Категорий пока нет. Создайте их в блоке ниже.
-                    </p>
-                  ) : null}
-                  {categories.map((category) => {
-                    const isSelected = pointForm.category_ids.includes(category.id);
-
-                    return (
-                      <label
-                        key={category.id}
-                        className={`map-category-chip admin-category-option ${
-                          isSelected ? "is-active" : ""
-                        }`}
-                      >
-                        <input
-                          className="visually-hidden"
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(event) => {
-                            setPointCategories(
-                              event.target.checked
-                                ? [...pointForm.category_ids, category.id]
-                                : pointForm.category_ids.filter((item) => item !== category.id),
-                            );
-                          }}
-                        />
-                        <span
-                          className="map-category-chip-dot"
-                          style={{ backgroundColor: category.color }}
-                        />
-                        <span>{category.title}</span>
-                        {isSelected ? <Check className="admin-category-check" /> : null}
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <label className="field">
-                <span>Изображения</span>
-                <textarea
-                  value={pointForm.image_urls_text}
-                  onChange={(event) =>
-                    setPointForm((current) => ({
-                      ...current,
-                      image_urls_text: event.target.value,
-                    }))
-                  }
-                  placeholder="По одной ссылке на строку"
-                />
-              </label>
-
-              <div className="post-actions">
-                <button
-                  type="button"
-                  className="button button-muted"
-                  onClick={resetPointEditor}
-                >
-                  Очистить форму
-                </button>
-                <button
-                  type="button"
-                  className="button button-primary"
-                  disabled={
-                    mutationKey === "point-create" ||
-                    (selectedPointId !== "new" &&
-                      mutationKey === `point-save-${selectedPointId}`)
-                  }
-                  onClick={() => void handleSavePoint()}
-                >
-                  {selectedPointId === "new" ? "Создать точку" : "Сохранить точку"}
-                </button>
-              </div>
-              </section>
-
-              <section className="panel profile-panel admin-map-category-editor-panel">
-                <div className="section-row">
-                  <div>
-                    <h3>{selectedCategoryId === "new" ? "Новая категория" : "Редактор категории"}</h3>
-                    <p className="muted">
-                      Категории используются в фильтрах и в карточках точек.
-                    </p>
-                  </div>
-                  {selectedCategoryId !== "new" ? (
-                    <button
-                      type="button"
-                      className="button button-danger"
-                      disabled={mutationKey === `category-delete-${selectedCategoryId}`}
-                      onClick={() => void handleDeleteCategory()}
-                    >
-                      Удалить
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="admin-category-editor">
-                  <div className="admin-category-list">
-                    <button
-                      type="button"
-                      className={`point-row admin-category-row ${
-                        selectedCategoryId === "new" ? "is-active" : ""
-                      }`}
-                      onClick={resetCategoryEditor}
-                    >
-                      <div className="section-row">
-                        <strong>Новая категория</strong>
-                        <span className="chip">+</span>
-                      </div>
-                      <p className="muted">Создать категорию для новых точек</p>
-                    </button>
-
-                    {categories.map((category) => (
+                  <div className="admin-post-actions">
+                    {selectedPointId !== "new" ? (
                       <button
-                        key={category.id}
                         type="button"
-                        className={`point-row admin-category-row ${
-                          selectedCategoryId === category.id ? "is-active" : ""
-                        }`}
-                        onClick={() => handleCategorySelection(category)}
+                        className="button button-danger button-inline"
+                        disabled={mutationKey === `point-delete-${selectedPointId}`}
+                        onClick={() => void handleDeletePoint()}
                       >
-                        <div className="section-row">
-                          <strong>{category.title}</strong>
-                          <span className="chip">#{category.sort_order}</span>
-                        </div>
-                        <p className="muted">{category.slug}</p>
-                        <div className="map-category-row">
-                          <span className="map-category-chip">
-                            <span
-                              className="map-category-chip-dot"
-                              style={{ backgroundColor: category.color }}
-                            />
-                            <span>{category.color}</span>
-                          </span>
-                        </div>
+                        Удалить
                       </button>
-                    ))}
+                    ) : null}
+                    <button
+                      type="button"
+                      className="button button-primary button-inline"
+                      disabled={mutationKey === "point-create" || (selectedPointId !== "new" && mutationKey === `point-save-${selectedPointId}`)}
+                      onClick={() => void handleSavePoint()}
+                    >
+                      {selectedPointId === "new" ? "Создать" : "Сохранить"}
+                    </button>
                   </div>
+                </div>
 
-                  <div className="admin-category-form">
+                <PointSection title="Основное">
+                  <div className="two-columns">
                     <label className="field">
-                      <span>Название категории</span>
-                      <input
-                        value={categoryForm.title}
-                        onChange={(event) =>
-                          setCategoryForm((current) => ({
-                            ...current,
-                            title: event.target.value,
-                          }))
-                        }
-                        placeholder="Например: Экоцентры"
-                      />
+                      <span>Название</span>
+                      <input value={pointForm.title} onChange={(e) => setPointForm((c) => ({ ...c, title: e.target.value }))} placeholder="Экопункт на Покровке" />
                     </label>
                     <label className="field">
                       <span>Slug</span>
-                      <input
-                        value={categoryForm.slug}
-                        onChange={(event) =>
-                          setCategoryForm((current) => ({
-                            ...current,
-                            slug: event.target.value,
-                          }))
-                        }
-                        placeholder="eco-center"
-                      />
+                      <input value={pointForm.slug} onChange={(e) => setPointForm((c) => ({ ...c, slug: e.target.value }))} placeholder="pokrovka-ecopoint" />
+                    </label>
+                  </div>
+                  <label className="field">
+                    <span>Краткое описание</span>
+                    <input value={pointForm.short_description} onChange={(e) => setPointForm((c) => ({ ...c, short_description: e.target.value }))} placeholder="Что принимает точка" />
+                  </label>
+                  <label className="field">
+                    <span>Описание</span>
+                    <textarea value={pointForm.description} onChange={(e) => setPointForm((c) => ({ ...c, description: e.target.value }))} placeholder="Подробности для пользователей" />
+                  </label>
+                  <div className="two-columns">
+                    <label className="field">
+                      <span>Адрес</span>
+                      <input value={pointForm.address} onChange={(e) => setPointForm((c) => ({ ...c, address: e.target.value }))} placeholder="Большая Покровская, 12" />
                     </label>
                     <label className="field">
-                      <span>Порядок (чем больше, тем выше в фильтре)</span>
-                      <input
-                        value={categoryForm.sort_order}
-                        onChange={(event) =>
-                          setCategoryForm((current) => ({
-                            ...current,
-                            sort_order: event.target.value,
-                          }))
-                        }
-                        placeholder="0"
-                      />
+                      <span>Часы работы</span>
+                      <input value={pointForm.working_hours} onChange={(e) => setPointForm((c) => ({ ...c, working_hours: e.target.value }))} placeholder="пн-пт 10:00–18:00" />
+                    </label>
+                  </div>
+                  <div className="two-columns">
+                    <label className="field">
+                      <span>Статус</span>
+                      <select value={pointForm.is_active ? "active" : "hidden"} onChange={(e) => setPointForm((c) => ({ ...c, is_active: e.target.value === "active" }))}>
+                        <option value="active">Активна</option>
+                        <option value="hidden">Скрыта</option>
+                      </select>
                     </label>
                     <label className="field">
-                      <span>Цвет категории</span>
-                      <div className="admin-color-input-row">
-                        <input
-                          className="admin-color-picker"
-                          type="color"
-                          value={normalizeHexColor(categoryForm.color)}
-                          onChange={(event) =>
-                            setCategoryForm((current) => ({
-                              ...current,
-                              color: event.target.value.toUpperCase(),
-                            }))
-                          }
-                          aria-label="Выбрать цвет категории"
-                        />
-                        <input
-                          value={categoryForm.color}
-                          onChange={(event) =>
-                            setCategoryForm((current) => ({
-                              ...current,
-                              color: event.target.value.toUpperCase(),
-                            }))
-                          }
-                          placeholder="#2D6A4F"
-                        />
-                      </div>
+                      <span>Порядок сортировки</span>
+                      <input value={pointForm.sort_order} onChange={(e) => setPointForm((c) => ({ ...c, sort_order: e.target.value }))} placeholder="0" />
                     </label>
+                  </div>
+                </PointSection>
 
-                    <div className="post-actions">
-                      <button
-                        type="button"
-                        className="button button-muted"
-                        onClick={resetCategoryEditor}
-                      >
-                        Очистить форму
+                <PointSection title="Координаты">
+                  <div className="two-columns">
+                    <label className="field">
+                      <span>Широта</span>
+                      <input value={pointForm.latitude} onChange={(e) => setPointForm((c) => ({ ...c, latitude: e.target.value }))} placeholder="56.320123" />
+                    </label>
+                    <label className="field">
+                      <span>Долгота</span>
+                      <input value={pointForm.longitude} onChange={(e) => setPointForm((c) => ({ ...c, longitude: e.target.value }))} placeholder="44.012345" />
+                    </label>
+                  </div>
+                </PointSection>
+
+                <PointSection title="Категории">
+                  <div className="admin-category-actions">
+                    <button type="button" className="button button-ghost button-inline" disabled={!categories.length} onClick={() => setPointCategories(categories.map((c) => c.id))}>Выбрать все</button>
+                    <button type="button" className="button button-ghost button-inline" disabled={!pointForm.category_ids.length} onClick={() => setPointCategories([])}>Очистить</button>
+                  </div>
+                  <div className="admin-category-grid">
+                    {!categories.length ? <p className="muted admin-category-empty">Категорий пока нет.</p> : null}
+                    {categories.map((cat) => {
+                      const isSelected = pointForm.category_ids.includes(cat.id);
+                      return (
+                        <label key={cat.id} className={`map-category-chip admin-category-option ${isSelected ? "is-active" : ""}`}>
+                          <input
+                            className="visually-hidden"
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => setPointCategories(e.target.checked ? [...pointForm.category_ids, cat.id] : pointForm.category_ids.filter((id) => id !== cat.id))}
+                          />
+                          <span className="map-category-chip-dot" style={{ backgroundColor: cat.color }} />
+                          <span>{cat.title}</span>
+                          {isSelected ? <Check className="admin-category-check" /> : null}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </PointSection>
+
+                <PointSection title="Дополнительно" defaultOpen={false}>
+                  <label className="field">
+                    <span>Цвет метки</span>
+                    <div className="admin-color-input-row">
+                      <input className="admin-color-picker" type="color" value={normalizeHexColor(pointForm.marker_color)} onChange={(e) => setPointForm((c) => ({ ...c, marker_color: e.target.value.toUpperCase() }))} aria-label="Цвет точки" />
+                      <input value={pointForm.marker_color} onChange={(e) => setPointForm((c) => ({ ...c, marker_color: e.target.value.toUpperCase() }))} placeholder="#2D6A4F" />
+                    </div>
+                  </label>
+                  <label className="field">
+                    <span>Изображения (одна ссылка на строку)</span>
+                    <textarea value={pointForm.image_urls_text} onChange={(e) => setPointForm((c) => ({ ...c, image_urls_text: e.target.value }))} placeholder="https://..." />
+                  </label>
+                </PointSection>
+
+                {/* Category editor */}
+                <PointSection title="Управление категориями" defaultOpen={false}>
+                  <div className="admin-category-editor">
+                    <div className="admin-category-list">
+                      <button type="button" className={`point-row admin-category-row ${selectedCategoryId === "new" ? "is-active" : ""}`} onClick={() => { setSelectedCategoryId("new"); setCategoryForm(createEmptyCategoryForm()); }}>
+                        <strong>+ Новая категория</strong>
                       </button>
-                      <button
-                        type="button"
-                        className="button button-primary"
-                        disabled={
-                          mutationKey === "category-create" ||
-                          (selectedCategoryId !== "new" &&
-                            mutationKey === `category-save-${selectedCategoryId}`)
-                        }
-                        onClick={() => void handleSaveCategory()}
-                      >
-                        {selectedCategoryId === "new"
-                          ? "Создать категорию"
-                          : "Сохранить категорию"}
-                      </button>
+                      {categories.map((cat) => (
+                        <button key={cat.id} type="button" className={`point-row admin-category-row ${selectedCategoryId === cat.id ? "is-active" : ""}`} onClick={() => { setSelectedCategoryId(cat.id); setCategoryForm(categoryToForm(cat)); }}>
+                          <div className="admin-point-row-head">
+                            <span className="map-category-chip-dot" style={{ backgroundColor: cat.color }} />
+                            <strong>{cat.title}</strong>
+                          </div>
+                          <p className="muted">{cat.slug}</p>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="admin-category-form">
+                      <label className="field"><span>Название</span><input value={categoryForm.title} onChange={(e) => setCategoryForm((c) => ({ ...c, title: e.target.value }))} placeholder="Экоцентры" /></label>
+                      <label className="field"><span>Slug</span><input value={categoryForm.slug} onChange={(e) => setCategoryForm((c) => ({ ...c, slug: e.target.value }))} placeholder="eco-center" /></label>
+                      <label className="field"><span>Порядок</span><input value={categoryForm.sort_order} onChange={(e) => setCategoryForm((c) => ({ ...c, sort_order: e.target.value }))} placeholder="0" /></label>
+                      <label className="field">
+                        <span>Цвет</span>
+                        <div className="admin-color-input-row">
+                          <input className="admin-color-picker" type="color" value={normalizeHexColor(categoryForm.color)} onChange={(e) => setCategoryForm((c) => ({ ...c, color: e.target.value.toUpperCase() }))} aria-label="Цвет категории" />
+                          <input value={categoryForm.color} onChange={(e) => setCategoryForm((c) => ({ ...c, color: e.target.value.toUpperCase() }))} placeholder="#2D6A4F" />
+                        </div>
+                      </label>
+                      <div className="post-actions">
+                        <button type="button" className="button button-muted" onClick={() => { setSelectedCategoryId("new"); setCategoryForm(createEmptyCategoryForm()); }}>Очистить</button>
+                        {selectedCategoryId !== "new" ? (
+                          <button type="button" className="button button-danger" disabled={mutationKey === `category-delete-${selectedCategoryId}`} onClick={() => void handleDeleteCategory()}>Удалить</button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="button button-primary"
+                          disabled={mutationKey === "category-create" || (selectedCategoryId !== "new" && mutationKey === `category-save-${selectedCategoryId}`)}
+                          onClick={() => void handleSaveCategory()}
+                        >
+                          {selectedCategoryId === "new" ? "Создать" : "Сохранить"}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </section>
-            </div>
+                </PointSection>
+
+                <button type="button" className="button button-ghost button-inline" onClick={() => { resetPointEditor(); setMapMode("list"); }}>
+                  ← Вернуться к списку
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>

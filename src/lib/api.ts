@@ -291,6 +291,7 @@ export async function listAdminPosts(filters: {
   search?: string;
   kind?: "news" | "event" | "story";
   is_published?: boolean;
+  ordering?: "recent" | "popular" | "recommended";
   page?: number;
 }): Promise<PaginatedResponse<PostListItem>> {
   const params = new URLSearchParams();
@@ -299,10 +300,22 @@ export async function listAdminPosts(filters: {
   if (typeof filters.is_published === "boolean") {
     params.set("is_published", String(filters.is_published));
   }
+  if (filters.ordering) params.set("ordering", filters.ordering);
   if (filters.page) params.set("page", String(filters.page));
 
   const url = `/admin/posts${params.size ? `?${params.toString()}` : ""}`;
   return request<PaginatedResponse<PostListItem>>(url, { auth: true });
+}
+
+export async function bulkAdminPosts(payload: {
+  action: "publish" | "unpublish" | "delete";
+  ids: number[];
+}): Promise<{ affected: number }> {
+  return request<{ affected: number }>("/admin/posts/bulk", {
+    auth: true,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function listAdminUsers(filters: {

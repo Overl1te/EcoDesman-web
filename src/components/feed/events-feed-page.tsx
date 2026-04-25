@@ -266,17 +266,41 @@ export function EventsFeedPage({
           <p className="eyebrow">Календарь событий</p>
           <p className="events-hero-subtitle">Создавайте события и участвуйте в жизни сообщества</p>
         </div>
-        <div className="events-quick-filters" role="toolbar" aria-label="Быстрые фильтры">
-          {(["all", "today", "week", "mine"] as QuickFilter[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={`events-quick-filter${quickFilter === f ? " is-active" : ""}`}
-              onClick={() => setQuickFilter(f)}
-            >
-              {QUICK_FILTER_LABELS[f]}
-            </button>
-          ))}
+        <div className="events-hero-controls">
+          <div className="events-quick-filters" role="toolbar" aria-label="Быстрые фильтры">
+            {(["all", "today", "week", "mine"] as QuickFilter[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`events-quick-filter${quickFilter === f ? " is-active" : ""}`}
+                onClick={() => setQuickFilter(f)}
+              >
+                {QUICK_FILTER_LABELS[f]}
+              </button>
+            ))}
+          </div>
+          {!loading && !error ? (
+            <div className="events-view-bar">
+              <div className="events-view-switcher">
+                <button
+                  type="button"
+                  className={`events-view-btn${viewMode === "month" ? " is-active" : ""}`}
+                  onClick={() => setViewMode("month")}
+                >
+                  <LayoutGrid className="button-icon" />
+                  Месяц
+                </button>
+                <button
+                  type="button"
+                  className={`events-view-btn${viewMode === "list" ? " is-active" : ""}`}
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="button-icon" />
+                  Список
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -285,27 +309,6 @@ export function EventsFeedPage({
 
       {!loading && !error ? (
         <>
-          <div className="events-view-bar">
-            <div className="events-view-switcher">
-              <button
-                type="button"
-                className={`events-view-btn${viewMode === "month" ? " is-active" : ""}`}
-                onClick={() => setViewMode("month")}
-              >
-                <LayoutGrid className="button-icon" />
-                Месяц
-              </button>
-              <button
-                type="button"
-                className={`events-view-btn${viewMode === "list" ? " is-active" : ""}`}
-                onClick={() => setViewMode("list")}
-              >
-                <List className="button-icon" />
-                Список
-              </button>
-            </div>
-          </div>
-
           {!hasAnyEvents && viewMode === "month" ? (
             <div className="events-onboarding panel">
               <div className="events-onboarding-icon">

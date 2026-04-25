@@ -7101,6 +7101,13 @@ img {
   margin: 0;
 }
 
+.events-hero-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .events-quick-filters {
   display: flex;
   gap: 8px;
@@ -7397,6 +7404,12 @@ img {
 @media (max-width: 760px) {
   .events-hero {
     gap: 12px;
+  }
+
+  .events-hero-controls {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
   }
 
   .events-quick-filters {
